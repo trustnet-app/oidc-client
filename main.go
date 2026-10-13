@@ -13,6 +13,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"net/url"
 )
 
 func main() {
@@ -22,6 +23,12 @@ func main() {
 	mux.HandleFunc("/", handleHome)
 	mux.HandleFunc("/start", handleStart)
 	mux.HandleFunc("/callback", handleCallback)
+	// TrustNet sends the browser back to the configured REDIRECT_URI, whose path
+	// may be anything (staging's client uses /redirect). Serve the authorization
+	// response on that exact path so the redirect is always handled.
+	if p := redirectPath(env.Redirect); p != "" && p != "/callback" {
+		mux.HandleFunc(p, handleCallback)
+	}
 	mux.HandleFunc("/result", handleResult)
 	mux.HandleFunc("/rp-userinfo", handleRpUserinfo)
 	mux.HandleFunc("/backchannel-logout", handleBackchannelLogout)
@@ -39,4 +46,14 @@ func main() {
 	log.Printf("oidc client %q listening on %s (client_id=%s, redirect=%s)",
 		env.Label, env.Listen, env.ClientID, env.Redirect)
 	log.Fatal(http.ListenAndServe(env.Listen, mux))
+}
+
+// redirectPath returns the path of REDIRECT_URI, or "" when it is "/" (already
+// covered by the home handler) or unparseable.
+func redirectPath(redirect string) string {
+	u, err := url.Parse(redirect)
+	if err != nil || u.Path == "" || u.Path == "/" {
+		return ""
+	}
+	return u.Path
 }

@@ -82,7 +82,7 @@ func renderResult(w http.ResponseWriter, f *flowState) {
 		fmt.Fprint(w, `</div>`)
 	}
 
-	fmt.Fprint(w, `<p class=muted><a href="/">← new flow</a> · <a href="/debug/state">/debug/state</a></p>`)
+	fmt.Fprint(w, `<p><a class=button href="/">New flow</a> <a class=muted href="/debug/state">/debug/state</a></p>`)
 }
 
 // renderAuthRequest shows the exact authorization request the client sends, so

@@ -195,7 +195,9 @@ func handleStart(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, f.AuthURL, http.StatusFound)
 }
 
-// GET /callback — exchange the code, decode the ID token, fetch userinfo.
+// GET /callback (and the REDIRECT_URI path) — the authorization response from
+// TrustNet: exchange the code, decode the ID token, fetch userinfo, then
+// redirect (PRG) to the result page so the code is not left in the URL.
 func handleCallback(w http.ResponseWriter, r *http.Request) {
 	f := getFlow(r.URL.Query().Get("state"))
 	if f == nil {
@@ -206,7 +208,7 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 		// The denial path lands here: error, no code, no token exchange.
 		f.Error = e + ": " + r.URL.Query().Get("error_description")
 		putFlow(f)
-		renderResult(w, f)
+		redirectToResult(w, r, f.State)
 		return
 	}
 	f.Code = r.URL.Query().Get("code")
@@ -215,7 +217,7 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		f.Error = "token exchange: " + err.Error()
 		putFlow(f)
-		renderResult(w, f)
+		redirectToResult(w, r, f.State)
 		return
 	}
 	f.TokenResp = tok
@@ -226,7 +228,13 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 		f.UserInfo = fetchUserInfo(at)
 	}
 	putFlow(f)
-	renderResult(w, f)
+	redirectToResult(w, r, f.State)
+}
+
+// redirectToResult applies Post/Redirect/Get: the browser lands on a clean
+// /result URL, and the result page's "New flow" button resets to the form.
+func redirectToResult(w http.ResponseWriter, r *http.Request, state string) {
+	http.Redirect(w, r, "/result?state="+url.QueryEscape(state), http.StatusSeeOther)
 }
 
 func handleResult(w http.ResponseWriter, r *http.Request) {
@@ -400,18 +408,32 @@ func jwksKey(kid string) (ed25519.PublicKey, error) {
 // --- token helpers -----------------------------------------------------------
 
 func exchangeCode(code, verifier string) (map[string]any, error) {
-	// client_secret_post, not Basic: the seeded clients are registered
-	// token_endpoint_auth_method=client_secret_post, and `curl -u` style Basic
-	// auth fails with invalid_client against them.
+	// Authenticate with whatever the client is registered for: client_secret_post
+	// (the seeded default) or client_secret_basic. Mismatching it fails with
+	// invalid_client.
 	form := url.Values{
 		"grant_type":    {"authorization_code"},
 		"code":          {code},
 		"redirect_uri":  {env.Redirect},
-		"client_id":     {env.ClientID},
-		"client_secret": {env.ClientSecret},
 		"code_verifier": {verifier},
 	}
-	resp, err := httpc.PostForm(disc.TokenEndpoint, form)
+	req, err := http.NewRequest(http.MethodPost, disc.TokenEndpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	if env.TokenAuthMethod == "basic" {
+		// RFC 6749 §2.3.1: form-urlencode the id/secret before Basic auth.
+		req.SetBasicAuth(url.QueryEscape(env.ClientID), url.QueryEscape(env.ClientSecret))
+	} else {
+		form.Set("client_id", env.ClientID)
+		form.Set("client_secret", env.ClientSecret)
+	}
+	body := form.Encode()
+	req.Body = io.NopCloser(strings.NewReader(body))
+	req.ContentLength = int64(len(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := httpc.Do(req)
 	if err != nil {
 		return nil, err
 	}

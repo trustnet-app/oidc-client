@@ -4,5 +4,8 @@
 !.env.example
 !.env.*.example
 
+# Exported CA roots (environment-specific)
+*.crt
+
 # Build output
 /oidc_oauth2_client

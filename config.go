@@ -29,6 +29,12 @@ type config struct {
 	ClientSecret string
 	Redirect     string
 
+	// TokenAuthMethod is how the client authenticates at the token endpoint:
+	// "post" (client_secret_post, the seeded default) or "basic"
+	// (client_secret_basic). Must match the client's registered
+	// token_endpoint_auth_method.
+	TokenAuthMethod string
+
 	// Optional TrustNet machine-plane wiring. Discovery does not describe these:
 	//   MachineURL is the /api/rp/v1/userinfo origin read with the consent-time
 	//   access token; JWKSURL is where TrustNet's purge-webhook signing keys
@@ -116,16 +122,17 @@ func loadConfig() {
 	loadDotEnv(file)
 
 	env = config{
-		Label:        getenv("LABEL", "oidc client"),
-		WellKnownURL: getenv("WELL_KNOWN_URL", ""),
-		ClientID:     getenv("CLIENT_ID", ""),
-		ClientSecret: getenv("CLIENT_SECRET", ""),
-		Redirect:     getenv("REDIRECT_URI", "http://localhost:5556/callback"),
-		MachineURL:   strings.TrimSuffix(getenv("MACHINE_URL", ""), "/"),
-		JWKSURL:      getenv("JWKS_URL", ""),
-		Listen:       getenv("LISTEN", ":5556"),
-		CAFile:       getenv("CA_FILE", ""),
-		TLSInsecure:  getenvBool("TLS_INSECURE"),
+		Label:           getenv("LABEL", "oidc client"),
+		WellKnownURL:    getenv("WELL_KNOWN_URL", ""),
+		ClientID:        getenv("CLIENT_ID", ""),
+		ClientSecret:    getenv("CLIENT_SECRET", ""),
+		Redirect:        getenv("REDIRECT_URI", "http://localhost:5556/callback"),
+		TokenAuthMethod: getenv("TOKEN_AUTH_METHOD", "post"),
+		MachineURL:      strings.TrimSuffix(getenv("MACHINE_URL", ""), "/"),
+		JWKSURL:         getenv("JWKS_URL", ""),
+		Listen:          getenv("LISTEN", ":5556"),
+		CAFile:          getenv("CA_FILE", ""),
+		TLSInsecure:     getenvBool("TLS_INSECURE"),
 	}
 	// ISSUER is a convenience: derive the well-known URL from it.
 	if env.WellKnownURL == "" {
@@ -138,6 +145,11 @@ func loadConfig() {
 	}
 	if env.ClientID == "" || env.ClientSecret == "" {
 		log.Fatalf("CLIENT_ID and CLIENT_SECRET are required (loaded %s)", file)
+	}
+	switch env.TokenAuthMethod {
+	case "post", "basic":
+	default:
+		log.Fatalf("TOKEN_AUTH_METHOD must be \"post\" or \"basic\", got %q", env.TokenAuthMethod)
 	}
 
 	httpc = newHTTPClient(env)
