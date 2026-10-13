@@ -1,0 +1,42 @@
+// oidc_oauth2_client — a standalone OIDC Relying Party inspector.
+//
+// A server-rendered OIDC client (authorization code + PKCE) configured from a
+// .env file: WELL_KNOWN_URL + CLIENT_ID + CLIENT_SECRET. Endpoints are read from
+// the well-known document, so the same binary targets staging or production by
+// switching ENV (which selects .env.staging / .env.production).
+//
+// Derived from TrustNet's _DEV/mock-rp fixture, with discovery in place of the
+// hardcoded local Hydra wiring. Like that fixture, this is a test tool: it
+// decodes JWTs without verifying signatures — an inspector, not a validator.
+package main
+
+import (
+	"log"
+	"net/http"
+)
+
+func main() {
+	loadConfig()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", handleHome)
+	mux.HandleFunc("/start", handleStart)
+	mux.HandleFunc("/callback", handleCallback)
+	mux.HandleFunc("/result", handleResult)
+	mux.HandleFunc("/rp-userinfo", handleRpUserinfo)
+	mux.HandleFunc("/backchannel-logout", handleBackchannelLogout)
+	mux.HandleFunc("/logout", handleLogout)
+	// The RP purge webhook: TrustNet POSTs a signed revocation here after a user
+	// revokes; /debug/purge exposes what arrived. Verification needs JWKS_URL.
+	mux.HandleFunc("/purge", handlePurge)
+	mux.HandleFunc("/debug/purge", handleDebugPurge)
+	mux.HandleFunc("/debug/state", handleDebugState)
+	mux.HandleFunc("/debug/reset", handleDebugReset)
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ok"))
+	})
+
+	log.Printf("oidc client %q listening on %s (client_id=%s, redirect=%s)",
+		env.Label, env.Listen, env.ClientID, env.Redirect)
+	log.Fatal(http.ListenAndServe(env.Listen, mux))
+}

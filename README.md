@@ -1,0 +1,66 @@
+# oidc_oauth2_client
+
+A standalone OIDC Relying Party **inspector** for testing TrustNet staging and
+production. Server-rendered, authorization-code + PKCE, configured entirely from
+a `.env` file. Endpoints come from the environment's OIDC discovery document, so
+one binary targets any deployment.
+
+Derived from TrustNet's `_DEV/mock-rp` fixture. Like it, this is a **test tool**:
+it decodes JWTs without verifying signatures. It is an inspector, not a
+validator, and it never self-registers a client — registration stays in each
+environment's seed path.
+
+## Config
+
+Copy a template and fill it in:
+
+```bash
+cp .env.staging.example .env.staging       # or .env.production.example
+$EDITOR .env.staging
+```
+
+| Variable | Required | Notes |
+|---|---|---|
+| `WELL_KNOWN_URL` | yes | discovery document; or set `ISSUER` to derive it |
+| `CLIENT_ID` | yes | RP client registered in that environment |
+| `CLIENT_SECRET` | yes | `client_secret_post` |
+| `REDIRECT_URI` | yes | must be registered on the client (default `http://localhost:5556/callback`) |
+| `LISTEN` | no | default `:5556` |
+| `LABEL` | no | shown on screen / in `/debug/state` |
+| `MACHINE_URL` | no | enables the machine-plane `/userinfo` probe when set |
+| `JWKS_URL` | no | enables purge-webhook JWS verification when set |
+| `CA_FILE` | no | add a PEM root (staging's internal CA) |
+| `TLS_INSECURE` | no | dev-only escape hatch; warns loudly |
+
+`ENV=<name>` selects `.env.<name>`; with `ENV` unset, `.env` is loaded. Real
+environment variables always override the file.
+
+## Run
+
+```bash
+./run.sh staging       # loads .env.staging, http://localhost:5556
+./run.sh production    # loads .env.production
+./run.sh               # loads .env
+```
+
+Then open <http://localhost:5556/>, pick scopes/claims, and start the flow.
+
+## Routes
+
+| Route | Purpose |
+|---|---|
+| `/` | launch form (scopes, claims, prompt, raw `claims` JSON) |
+| `/start` | build the authorize URL (`?preview=1` renders it instead of following) |
+| `/callback` | code exchange, ID-token decode, OIDC `/userinfo` |
+| `/result` | per-flow result surface |
+| `/rp-userinfo` | machine-plane `/api/rp/v1/userinfo` probe (needs `MACHINE_URL`) |
+| `/logout` | RP-initiated logout via `end_session_endpoint` |
+| `/backchannel-logout` | receives logout tokens |
+| `/purge` | receives TrustNet purge webhooks (verify needs `JWKS_URL`) |
+| `/debug/state`, `/debug/purge`, `/debug/reset` | machine-readable state |
+
+## Notes
+
+- The RP's `sub` is the PPID; `account_id`/`persona_id` must never appear.
+- The registered `REDIRECT_URI` must exist on the client in each environment;
+  this tool deliberately does **not** create or update clients.
