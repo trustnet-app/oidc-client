@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo RP — error</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script src="../design.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true"></span> Demo RP</a>
+      <nav class="nav" aria-label="Main">
+        <a href="home.html">Home</a>
+        <a href="account-dashboard.html">Dashboard</a>
+        <a href="webhook-log.html">Webhooks</a>
+        <button class="btn ghost small" type="button" data-theme-toggle>Dark</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div style="max-width:620px;margin:2rem auto 0">
+      <div class="card">
+        <div class="card-head">
+          <h1>Something went wrong</h1>
+          <span class="badge danger">400</span>
+        </div>
+        <p class="muted">Bad request · unknown state</p>
+
+        <h2 style="margin-top:1rem">Details</h2>
+        <p>The authorization response carried a <code>state</code> that is not in
+          the demo store. It may have expired after the one-hour TTL, or this is a
+          replayed callback.</p>
+        <p class="muted">No token, cookie, authorization code, or claim value is
+          included in this message.</p>
+
+        <div class="row" style="margin-top:1.2rem">
+          <a class="btn" href="home.html">Back to home</a>
+          <a class="btn secondary" href="account-dashboard.html">Open dashboard</a>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:1rem">
+        <div class="card-head"><h2>Other statuses</h2></div>
+        <dl class="kv">
+          <dt>401</dt><dd>No valid session for a protected action.</dd>
+          <dt>405</dt><dd>Wrong HTTP method (for example, GET on the purge webhook).</dd>
+          <dt>500</dt><dd>Unexpected server error; details are sanitized.</dd>
+        </dl>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo RP — design catalogue</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="design.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span> Demo RP</a>
+      <nav class="nav" aria-label="Catalogue">
+        <a href="index.html" aria-current="page">Catalogue</a>
+        <a href="screens/home.html">Home</a>
+        <a href="screens/account-dashboard.html">Dashboard</a>
+        <a href="screens/webhook-log.html">Webhooks</a>
+        <button class="btn ghost small" type="button" data-theme-toggle>Dark</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <h1>Demo RP design catalogue</h1>
+      <p>Static HTML/CSS/JS renderings of every screen in <code>_DOCS/screens</code>.
+        Fake data, real geometry. The screen docs remain the source of truth.</p>
+    </section>
+
+    <div class="catalogue">
+      <a class="card" href="screens/home.html">
+        <h2>Demo RP home / launch</h2>
+        <p class="muted"><code>screen-demo-home</code> · <code>/</code></p>
+      </a>
+      <a class="card" href="screens/account-dashboard.html">
+        <h2>Account dashboard</h2>
+        <p class="muted"><code>screen-account-dashboard</code> · <code>/account</code></p>
+      </a>
+      <a class="card" href="screens/flow-result.html">
+        <h2>Flow result</h2>
+        <p class="muted"><code>screen-flow-result</code> · <code>/result</code></p>
+      </a>
+      <a class="card" href="screens/auth-preview.html">
+        <h2>Authorization request preview</h2>
+        <p class="muted"><code>screen-auth-preview</code> · <code>/start?preview=1</code></p>
+      </a>
+      <a class="card" href="screens/session-ended.html">
+        <h2>Session ended by TrustNet</h2>
+        <p class="muted"><code>screen-session-ended</code> · stale cookie on <code>/account</code></p>
+      </a>
+      <a class="card" href="screens/account-erased.html">
+        <h2>Account data erased</h2>
+        <p class="muted"><code>screen-account-erased</code> · stale cookie on <code>/account</code></p>
+      </a>
+      <a class="card" href="screens/webhook-log.html">
+        <h2>Webhook deliveries</h2>
+        <p class="muted"><code>screen-webhook-log</code> · <code>/webhooks</code></p>
+      </a>
+      <a class="card" href="screens/error.html">
+        <h2>Error</h2>
+        <p class="muted"><code>screen-error</code> · any failing route</p>
+      </a>
+    </div>
+
+    <p class="footer-note">Open this folder with any static file server, e.g.
+      <code>python3 -m http.server -d _DESIGN 8000</code>.</p>
+  </main>
+</body>
+</html>

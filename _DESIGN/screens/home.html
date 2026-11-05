@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo RP — home</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script src="../design.js" defer></script>
+</head>
+<body class="home-shell">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true"></span> Demo RP</a>
+      <nav class="nav" aria-label="Main">
+        <a href="home.html" aria-current="page">Home</a>
+        <a href="account-dashboard.html">Dashboard</a>
+        <a href="webhook-log.html">Webhooks</a>
+        <button class="btn ghost small" type="button" data-theme-toggle>Dark</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap home-page">
+    <section class="page-head">
+      <p class="eyebrow">Authorization Code Flow · Demo Client</p>
+      <h1>Demo RP</h1>
+      <p class="lede">This demo relying party signs you in with OpenID Connect.
+        Choose the claims to request, then start the authorization-code flow. The
+        browser is sent to TrustNet and returns with an ID token, an access
+        token, and only the claims you approved.</p>
+      <div class="meta-pills">
+        <span class="meta-pill"><span class="meta-label">client_id</span><code>2dc2a19c-e5a8-46d9-8a2d-f8dfe6855a1d</code></span>
+        <span class="meta-sep" aria-hidden="true">·</span>
+        <span class="meta-pill"><span class="meta-label">redirect</span><code>https://demo.example/redirect</code></span>
+        <span class="meta-sep" aria-hidden="true">·</span>
+        <span class="meta-pill"><span class="meta-label">issuer</span><code>https://id.trustnet.app</code></span>
+      </div>
+      <div class="notice" role="note"><span class="notice-icon" aria-hidden="true">i</span><span>You are signed out. Starting login sends the browser to TrustNet.</span></div>
+    </section>
+
+    <form class="grid" onsubmit="return false">
+      <fieldset class="panel">
+        <legend class="sr-only">Scope</legend>
+        <div class="panel-head" aria-hidden="true">
+          <span class="panel-title">Scope</span>
+          <span class="panel-badge">OAuth 2.0 / OIDC</span>
+        </div>
+        <div class="checks">
+          <label class="check tile"><input type="checkbox" checked> <span>openid</span> <span class="req">required</span></label>
+        </div>
+        <p class="hint">The <code>openid</code> scope is required to request an ID token.</p>
+      </fieldset>
+
+      <fieldset class="panel">
+        <legend class="sr-only">Claims</legend>
+        <div class="panel-head" aria-hidden="true">
+          <span class="panel-title">Claims</span>
+          <span class="panel-meta">Standard OpenID Spec</span>
+        </div>
+        <p class="hint">Select any claims to request. Every claim below can be
+          registered or deregistered for this demo client.</p>
+        <div class="checks claim-grid">
+          <label class="check tile"><input type="checkbox"> <span>birthdate</span></label>
+          <label class="check tile"><input type="checkbox" checked> <span>email</span></label>
+          <label class="check tile"><input type="checkbox" checked> <span>email_<wbr>verified</span></label>
+          <label class="check tile"><input type="checkbox" checked> <span>family_<wbr>name</span></label>
+          <label class="check tile"><input type="checkbox"> <span>gender</span></label>
+          <label class="check tile"><input type="checkbox" checked> <span>given_<wbr>name</span></label>
+          <label class="check tile"><input type="checkbox"> <span>locale</span></label>
+          <label class="check tile"><input type="checkbox"> <span>name</span></label>
+          <label class="check tile"><input type="checkbox"> <span>nickname</span></label>
+          <label class="check tile"><input type="checkbox"> <span>phone_<wbr>number</span></label>
+          <label class="check tile"><input type="checkbox"> <span>phone_<wbr>number_<wbr>verified</span></label>
+          <label class="check tile"><input type="checkbox"> <span>picture</span></label>
+          <label class="check tile"><input type="checkbox"> <span>preferred_<wbr>username</span></label>
+          <label class="check tile"><input type="checkbox"> <span>website</span></label>
+          <label class="check tile"><input type="checkbox"> <span>zoneinfo</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="panel">
+        <legend class="sr-only">prompt (OIDC)</legend>
+        <div class="panel-head" aria-hidden="true">
+          <span class="panel-title">prompt (OIDC)</span>
+          <span class="panel-meta">Interaction Control</span>
+        </div>
+        <div class="checks">
+          <label class="check tile"><input type="checkbox"> <span>consent</span></label>
+        </div>
+      </fieldset>
+
+      <div class="card code-card">
+        <div class="code-card-head">
+          <label for="claims">OIDC <code>claims</code> request parameter (JSON, optional — overrides the checkboxes)</label>
+          <span class="panel-meta">JSON Editor</span>
+        </div>
+        <div class="code-window">
+          <div class="code-window-bar">
+            <span class="code-dots" aria-hidden="true"><i class="dot-red"></i><i class="dot-amber"></i><i class="dot-green"></i><span class="code-file">claims_payload.json</span></span>
+            <span class="code-enc">UTF-8</span>
+          </div>
+          <div class="code-body">
+            <div class="code-gutter" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span></div>
+            <textarea id="claims" rows="4" placeholder='{"id_token":{"email":{"essential":true}}}'></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="row actions">
+        <a class="btn btn-lg btn-primary" href="auth-preview.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          Start login
+        </a>
+        <a class="btn secondary btn-lg" href="auth-preview.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          Preview request
+        </a>
+      </div>
+    </form>
+
+    <p class="footer-note">Signed in? Visiting <code>/</code> redirects to the
+      <a href="account-dashboard.html">account dashboard</a>. Webhook proof lives at
+      <a href="webhook-log.html">/webhooks</a>.</p>
+  </main>
+</body>
+</html>

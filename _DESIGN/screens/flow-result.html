@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo RP — flow result</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script src="../design.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true"></span> Demo RP</a>
+      <nav class="nav" aria-label="Main">
+        <a href="home.html">Home</a>
+        <a href="account-dashboard.html">Dashboard</a>
+        <a href="webhook-log.html">Webhooks</a>
+        <button class="btn ghost small" type="button" data-theme-toggle>Dark</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <div class="row spread">
+        <div>
+          <h1>Flow result</h1>
+          <p class="muted">Authorization code + PKCE flow completed at 14:32:10 UTC.</p>
+        </div>
+        <a class="btn secondary" href="account-dashboard.html">Back to dashboard</a>
+      </div>
+    </section>
+
+    <div class="notice" role="status">Success — the code was exchanged and the ID token was decoded.</div>
+
+    <div class="grid two" style="margin-top:1rem">
+      <section class="card">
+        <div class="card-head"><h2>Subject</h2><span class="badge ok">logged in</span></div>
+        <dl class="kv">
+          <dt>sub (PPID)</dt><dd class="mono">ppid_7c1e9f60a2b34d5e8a91</dd>
+          <dt>sid</dt><dd class="mono">hydra-session-4f2a91</dd>
+          <dt>nonce</dt><dd class="mono">matched</dd>
+          <dt>state</dt><dd class="mono">matched</dd>
+        </dl>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>Token response (values redacted)</h2><span class="badge">2 keys</span></div>
+        <dl class="kv">
+          <dt>access_token</dt><dd class="mono">&lt;redacted, 43 chars&gt;</dd>
+          <dt>id_token</dt><dd class="mono">&lt;redacted, 812 chars&gt;</dd>
+          <dt>token_type</dt><dd>Bearer</dd>
+          <dt>expires_in</dt><dd>3600</dd>
+        </dl>
+        <p class="muted" style="margin-top:.6rem">Raw values are available only at
+          <a href="../index.html">/debug/state</a>.</p>
+      </section>
+    </div>
+
+    <div class="grid two" style="margin-top:1rem">
+      <section class="card">
+        <div class="card-head"><h2>ID token claims</h2></div>
+        <pre>{
+  "iss": "https://id.trustnet.app",
+  "sub": "ppid_7c1e9f60a2b34d5e8a91",
+  "aud": "2dc2a19c-e5a8-46d9-8a2d-f8dfe6855a1d",
+  "exp": 1762353130,
+  "iat": 1762349530,
+  "sid": "hydra-session-4f2a91",
+  "preferred_username": "vladimir",
+  "name": "Vladimir Gorea",
+  "email": "vladimir@example.com",
+  "email_verified": true,
+  "given_name": "Vladimir",
+  "family_name": "Gorea"
+}</pre>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>OIDC /userinfo</h2><span class="badge ok">200</span></div>
+        <pre>{
+  "sub": "ppid_7c1e9f60a2b34d5e8a91",
+  "preferred_username": "vladimir",
+  "name": "Vladimir Gorea",
+  "email": "vladimir@example.com",
+  "email_verified": true
+}</pre>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:1rem">
+      <div class="card-head"><h2>TrustNet machine-plane userinfo</h2><span class="badge accent">probe</span></div>
+      <p class="muted">The RP's own consent-time access token, sent to
+        <code>/api/rp/v1/userinfo</code>.</p>
+      <button class="btn secondary" type="button" data-probe="probe-result">Test userinfo endpoint</button>
+      <div id="probe-result" hidden>
+        <dl class="kv" style="margin-top:.8rem">
+          <dt>Request</dt><dd class="mono">GET https://rp.trustnet.app/api/rp/v1/userinfo</dd>
+          <dt>Authorization</dt><dd class="mono">Bearer &lt;redacted&gt;</dd>
+          <dt>Status</dt><dd><span class="badge ok">200</span></dd>
+        </dl>
+        <pre>{
+  "sub": "ppid_7c1e9f60a2b34d5e8a91",
+  "claims": { "email": "vladimir@example.com" }
+}</pre>
+      </div>
+    </section>
+
+    <p class="footer-note"><a href="home.html">New flow</a> · <a href="../index.html">design catalogue</a></p>
+  </main>
+</body>
+</html>

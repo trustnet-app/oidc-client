@@ -23,8 +23,9 @@ $EDITOR .env.staging
 |---|---|---|
 | `WELL_KNOWN_URL` | yes | discovery document; or set `ISSUER` to derive it |
 | `CLIENT_ID` | yes | RP client registered in that environment |
-| `CLIENT_SECRET` | yes | `client_secret_post` |
+| `CLIENT_SECRET` | yes | used by the client's registered auth method |
 | `REDIRECT_URI` | yes | must be registered on the client (default `http://localhost:5556/callback`) |
+| `TOKEN_AUTH_METHOD` | no | `post` (default) or `basic`; must match the client's `token_endpoint_auth_method`. Portal-registered production RPs use `client_secret_basic`. |
 | `LISTEN` | no | default `:5556` |
 | `LABEL` | no | shown on screen / in `/debug/state` |
 | `MACHINE_URL` | no | enables the machine-plane `/userinfo` probe when set |

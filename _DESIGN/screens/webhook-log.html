@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo RP — webhook deliveries</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script src="../design.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true"></span> Demo RP</a>
+      <nav class="nav" aria-label="Main">
+        <a href="home.html">Home</a>
+        <a href="account-dashboard.html">Dashboard</a>
+        <a href="webhook-log.html" aria-current="page">Webhooks</a>
+        <button class="btn ghost small" type="button" data-theme-toggle>Dark</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <div class="row spread">
+        <div>
+          <h1>Webhook deliveries</h1>
+          <p class="muted">TrustNet signs each purge webhook with Ed25519. Verified
+            rows were checked against the JWKS; invalid rows are recorded but not
+            acted on.</p>
+        </div>
+        <div class="row">
+          <a class="btn secondary small" href="webhook-log.html">Refresh</a>
+          <a class="btn secondary small" href="#" data-reset>Reset demo state</a>
+          <a class="btn small" href="#" title="JSON in the real app">Open JSON</a>
+        </div>
+      </div>
+      <div id="reset-note" class="notice warn" hidden role="status">Demo state reset (design preview only).</div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Purge deliveries</h2><span class="badge">2 rows</span></div>
+      <table>
+        <thead>
+          <tr><th>Received</th><th>Event</th><th>Reason</th><th>Verified</th><th>Delivery</th><th>subs</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="nowrap">14:44:37 UTC</td>
+            <td><code>account.erased</code></td>
+            <td><code>user_erasure</code></td>
+            <td><span class="badge ok">verified</span></td>
+            <td class="mono">dlv_01h2x9k4m7</td>
+            <td class="mono">ppid_7c1e9f60a2b34d5e8a91</td>
+          </tr>
+          <tr>
+            <td class="nowrap">14:39:12 UTC</td>
+            <td><code>access.revoked</code></td>
+            <td><code>user_revoke</code></td>
+            <td><span class="badge ok">verified</span></td>
+            <td class="mono">dlv_01h2x8p2q5</td>
+            <td class="mono">ppid_7c1e9f60a2b34d5e8a91</td>
+          </tr>
+          <tr>
+            <td class="nowrap">14:31:55 UTC</td>
+            <td><code>access.revoked</code></td>
+            <td><code>user_revoke</code></td>
+            <td><span class="badge danger">unverified</span></td>
+            <td class="mono">dlv_01h2x7d9r1</td>
+            <td class="muted">kid not found in JWKS</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card" style="margin-top:1rem">
+      <div class="card-head"><h2>Back-channel logout events</h2><span class="badge">1 row</span></div>
+      <table>
+        <thead>
+          <tr><th>Received</th><th>sid</th><th>sub</th><th>Event</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="nowrap">14:41:02 UTC</td>
+            <td class="mono">hydra-session-4f2a91</td>
+            <td class="mono">ppid_7c1e9f60a2b34d5e8a91</td>
+            <td><span class="badge ok">logged_out</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card" style="margin-top:1rem">
+      <div class="card-head"><h2>Empty state</h2><span class="badge">example</span></div>
+      <div class="empty">No deliveries yet. Revoke access or erase an account in
+        TrustNet, then refresh.</div>
+    </section>
+
+    <p class="footer-note">This page is public and contains only PPIDs and delivery
+      metadata — never tokens, cookies, or claim values.</p>
+  </main>
+</body>
+</html>

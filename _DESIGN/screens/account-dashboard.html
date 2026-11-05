@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo RP — account</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script src="../design.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true"></span> Demo RP</a>
+      <nav class="nav" aria-label="Main">
+        <a href="home.html">Home</a>
+        <a href="account-dashboard.html" aria-current="page">Dashboard</a>
+        <a href="webhook-log.html">Webhooks</a>
+        <button class="btn ghost small" type="button" data-theme-toggle>Dark</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <div class="row spread">
+        <div class="row">
+          <span class="avatar" aria-hidden="true">V</span>
+          <div>
+            <h1>Logged in as vladimir</h1>
+            <p class="muted">Session started just now · expires in 1 hour</p>
+          </div>
+        </div>
+        <a class="btn secondary" href="home.html">Sign out</a>
+      </div>
+    </section>
+
+    <div class="grid two">
+      <section class="card">
+        <div class="card-head"><h2>Session</h2><span class="badge ok">active</span></div>
+        <dl class="kv">
+          <dt>sub (PPID)</dt><dd class="mono">ppid_7c1e9f60a2b34d5e8a91</dd>
+          <dt>sid</dt><dd class="mono">hydra-session-4f2a91</dd>
+          <dt>Started</dt><dd>2026-11-05 14:32:10 UTC</dd>
+          <dt>Expires</dt><dd>2026-11-05 15:32:10 UTC</dd>
+          <dt>Cookie</dt><dd><code>demo_rp_session</code> · HttpOnly · SameSite=Lax · Secure</dd>
+        </dl>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>Identity from the ID token</h2><span class="badge accent">verified login</span></div>
+        <dl class="kv">
+          <dt>preferred_username</dt><dd>vladimir</dd>
+          <dt>name</dt><dd>Vladimir Gorea</dd>
+          <dt>email</dt><dd>vladimir@example.com</dd>
+          <dt>email_verified</dt><dd><span class="badge ok">true</span></dd>
+          <dt>given_name</dt><dd>Vladimir</dd>
+          <dt>family_name</dt><dd>Gorea</dd>
+        </dl>
+      </section>
+    </div>
+
+    <div class="grid two" style="margin-top:1rem">
+      <section class="card">
+        <div class="card-head"><h2>OIDC /userinfo</h2><span class="badge">200</span></div>
+        <pre>{
+  "sub": "ppid_7c1e9f60a2b34d5e8a91",
+  "preferred_username": "vladimir",
+  "name": "Vladimir Gorea",
+  "email": "vladimir@example.com",
+  "email_verified": true
+}</pre>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>TrustNet machine-plane userinfo</h2><span class="badge accent">MACHINE_URL</span></div>
+        <p class="muted">Server-to-server read with the consent-time access token.</p>
+        <button class="btn secondary" type="button" data-probe="probe-result">Test userinfo endpoint</button>
+        <div id="probe-result" hidden>
+          <dl class="kv" style="margin-top:.8rem">
+            <dt>Request</dt><dd class="mono">GET /api/rp/v1/userinfo</dd>
+            <dt>Status</dt><dd><span class="badge ok">200</span></dd>
+          </dl>
+          <pre>{
+  "sub": "ppid_7c1e9f60a2b34d5e8a91",
+  "claims": { "email": "vladimir@example.com" }
+}</pre>
+        </div>
+      </section>
+    </div>
+
+    <div class="grid two" style="margin-top:1rem">
+      <section class="card">
+        <div class="card-head"><h2>Flow</h2><span class="badge">inspect</span></div>
+        <p class="muted">The authorization request, token response, decoded claims, and machine probe.</p>
+        <a class="btn" href="flow-result.html">View last flow</a>
+        <a class="btn secondary" href="auth-preview.html">Preview request</a>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>Session events</h2><span class="badge warn">1 event</span></div>
+        <p class="muted">TrustNet has not ended this session. If it does, this browser
+          will show the ended or erased screen on the next request.</p>
+        <ul class="muted" style="margin:.4rem 0 0;padding-left:1.1rem">
+          <li>Login succeeded at 14:32:10 UTC.</li>
+        </ul>
+      </section>
+    </div>
+
+    <p class="footer-note">Sign out clears the demo session locally, then redirects to
+      TrustNet's <code>end_session_endpoint</code>.</p>
+  </main>
+</body>
+</html>

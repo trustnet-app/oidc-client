@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo RP — session ended</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script src="../design.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true"></span> Demo RP</a>
+      <nav class="nav" aria-label="Main">
+        <a href="home.html">Home</a>
+        <a href="account-dashboard.html">Dashboard</a>
+        <a href="webhook-log.html">Webhooks</a>
+        <button class="btn ghost small" type="button" data-theme-toggle>Dark</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div style="max-width:620px;margin:2rem auto 0">
+      <div class="card">
+        <div class="card-head">
+          <h1>You were signed out by TrustNet</h1>
+          <span class="badge warn">logged_out</span>
+        </div>
+        <p>The demo RP session ended because TrustNet notified it server-to-server.
+          Your browser cookie is no longer valid.</p>
+
+        <dl class="kv" style="margin-top:1rem">
+          <dt>Event</dt><dd>Back-channel logout</dd>
+          <dt>Received</dt><dd>2026-11-05 14:41:02 UTC</dd>
+          <dt>sub</dt><dd class="mono">ppid_7c1e9f60a2b34d5e8a91</dd>
+          <dt>sid</dt><dd class="mono">hydra-session-4f2a91</dd>
+        </dl>
+
+        <div class="row" style="margin-top:1.2rem">
+          <a class="btn" href="home.html">Log in again</a>
+          <a class="btn secondary" href="webhook-log.html">Open webhook log</a>
+        </div>
+      </div>
+      <p class="muted" style="margin-top:1rem">This notice is shown once from the
+        short-lived tombstone and disappears after the one-hour TTL.</p>
+    </div>
+  </main>
+</body>
+</html>

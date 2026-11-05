@@ -9,3 +9,6 @@
 
 # Build output
 /oidc_oauth2_client
+
+# Stitch design workspace (captures, variants, manifests)
+.stitch/
