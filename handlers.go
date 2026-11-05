@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"sort"
@@ -38,6 +39,19 @@ var promptValues = []string{"consent"}
 
 // GET / — the launch form.
 func handleHome(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	sess, err := currentSession(r)
+	if err != nil {
+		renderError(w, http.StatusInternalServerError, "Could not read the demo session.")
+		return
+	}
+	if sess != nil {
+		http.Redirect(w, r, "/account", http.StatusSeeOther)
+		return
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	pageStart(w, "OIDC · test client", "home")
 
@@ -188,11 +202,12 @@ func handleStart(w http.ResponseWriter, r *http.Request) {
 func handleCallback(w http.ResponseWriter, r *http.Request) {
 	f := getFlow(r.URL.Query().Get("state"))
 	if f == nil {
-		http.Error(w, "unknown state", http.StatusBadRequest)
+		renderError(w, http.StatusBadRequest, "The authorization response carried an unknown state.")
 		return
 	}
 	if e := r.URL.Query().Get("error"); e != "" {
-		// The denial path lands here: error, no code, no token exchange.
+		// The denial path lands here: error, no code, no token exchange. There
+		// is no session to protect, so the result page renders the error.
 		f.Error = e + ": " + r.URL.Query().Get("error_description")
 		putFlow(f)
 		redirectToResult(w, r, f.State)
@@ -215,7 +230,16 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 		f.UserInfo = fetchUserInfo(at)
 	}
 	putFlow(f)
-	redirectToResult(w, r, f.State)
+
+	sess, err := startSession(w, r, f)
+	if err != nil {
+		f.Error = "session: " + err.Error()
+		putFlow(f)
+		redirectToResult(w, r, f.State)
+		return
+	}
+	log.Printf("session started, expires %s", sess.ExpiresAt.Format(time.RFC3339))
+	http.Redirect(w, r, "/account", http.StatusSeeOther)
 }
 
 // redirectToResult applies Post/Redirect/Get: the browser lands on a clean
@@ -225,10 +249,35 @@ func redirectToResult(w http.ResponseWriter, r *http.Request, state string) {
 }
 
 func handleResult(w http.ResponseWriter, r *http.Request) {
-	f := getFlow(r.URL.Query().Get("state"))
-	if f == nil {
-		http.Error(w, "unknown state", http.StatusBadRequest)
+	sess, err := currentSession(r)
+	if err != nil {
+		renderError(w, http.StatusInternalServerError, "Could not read the demo session.")
 		return
+	}
+
+	state := r.URL.Query().Get("state")
+	var f *flowState
+	if state != "" {
+		f = getFlow(state)
+	} else if sess != nil {
+		f = latestFlowForSub(sess.Sub)
+	}
+	if f == nil {
+		renderError(w, http.StatusNotFound, "The requested flow was not found.")
+		return
+	}
+
+	// A successful flow belongs to a signed-in session. An error flow (denial
+	// or token-exchange failure) has no session yet, so it remains inspectable.
+	if sess == nil && f.Error == "" {
+		renderError(w, http.StatusUnauthorized, "A valid session is required to view this flow.")
+		return
+	}
+	if sess != nil {
+		if sub := claimString(f.IDClaims, "sub"); sub != "" && sub != sess.Sub {
+			renderError(w, http.StatusUnauthorized, "This flow does not belong to the current session.")
+			return
+		}
 	}
 	renderResult(w, f)
 }
@@ -242,30 +291,6 @@ func handleBackchannelLogout(w http.ResponseWriter, r *http.Request) {
 	lastLogout = claims
 	lastLogoutMu.Unlock()
 	w.WriteHeader(http.StatusOK)
-}
-
-// GET /logout — RP-initiated logout via the discovered end_session endpoint.
-func handleLogout(w http.ResponseWriter, r *http.Request) {
-	if disc.EndSessionEndpoint == "" {
-		http.Error(w, "end_session_endpoint not present in the discovery document", http.StatusNotImplemented)
-		return
-	}
-	var idt string
-	newest := time.Time{}
-	for _, f := range allFlows() {
-		if f.TokenResp == nil || !f.CreatedAt.After(newest) {
-			continue
-		}
-		if s, ok := f.TokenResp["id_token"].(string); ok {
-			idt, newest = s, f.CreatedAt
-		}
-	}
-	loc := disc.EndSessionEndpoint + "?post_logout_redirect_uri=" +
-		url.QueryEscape(strings.TrimSuffix(env.Redirect, "/callback")+"/")
-	if idt != "" {
-		loc += "&id_token_hint=" + url.QueryEscape(idt)
-	}
-	http.Redirect(w, r, loc, http.StatusFound)
 }
 
 // GET /debug/state — machine-readable dump for assertions the HTML redacts.
@@ -290,6 +315,11 @@ func handleDebugState(w http.ResponseWriter, r *http.Request) {
 // POST /debug/reset — drop accumulated flow state.
 func handleDebugReset(w http.ResponseWriter, r *http.Request) {
 	resetFlows()
+	if dataStore != nil {
+		if err := dataStore.reset(); err != nil {
+			log.Printf("debug reset: store: %v", err)
+		}
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -498,29 +528,48 @@ func probeMachineUserinfo(token string) *machineProbe {
 // handleRpUserinfo runs the probe for a flow and returns to its result page.
 func handleRpUserinfo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		renderError(w, http.StatusMethodNotAllowed, "This action accepts POST only.")
+		return
+	}
+	sess, err := currentSession(r)
+	if err != nil {
+		renderError(w, http.StatusInternalServerError, "Could not read the demo session.")
+		return
+	}
+	if sess == nil {
+		renderError(w, http.StatusUnauthorized, "A valid session is required to call the machine-plane userinfo endpoint.")
 		return
 	}
 	if env.MachineURL == "" {
-		http.Error(w, "MACHINE_URL not configured", http.StatusNotImplemented)
+		renderError(w, http.StatusNotImplemented, "MACHINE_URL is not configured.")
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad form", http.StatusBadRequest)
+		renderError(w, http.StatusBadRequest, "The probe form could not be read.")
 		return
 	}
-	f := getFlow(r.Form.Get("state"))
-	if f == nil {
-		http.Error(w, "unknown state", http.StatusBadRequest)
+	if sess.AccessToken == "" {
+		renderError(w, http.StatusBadRequest, "No access token is stored for this session.")
 		return
 	}
-	token, _ := f.TokenResp["access_token"].(string)
-	if token == "" {
-		http.Error(w, "no access token for this flow", http.StatusBadRequest)
+
+	p := probeMachineUserinfo(sess.AccessToken)
+	if state := r.Form.Get("state"); state != "" {
+		f := getFlow(state)
+		if f == nil {
+			renderError(w, http.StatusNotFound, "The requested flow was not found.")
+			return
+		}
+		if sub := claimString(f.IDClaims, "sub"); sub != "" && sub != sess.Sub {
+			renderError(w, http.StatusUnauthorized, "This flow does not belong to the current session.")
+			return
+		}
+		f.MachineProbe = p
+		putFlow(f)
+		renderResult(w, f)
 		return
 	}
-	f.MachineProbe = probeMachineUserinfo(token)
-	http.Redirect(w, r, "/result?state="+url.QueryEscape(f.State), http.StatusSeeOther)
+	renderAccount(w, sess, p)
 }
 
 // prettyText pretty-prints a JSON body and leaves anything else verbatim.

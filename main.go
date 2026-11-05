@@ -41,6 +41,7 @@ func main() {
 	if p := redirectPath(env.Redirect); p != "" && p != "/callback" {
 		mux.HandleFunc(p, handleCallback)
 	}
+	mux.HandleFunc("/account", handleAccount)
 	mux.HandleFunc("/result", handleResult)
 	mux.HandleFunc("/rp-userinfo", handleRpUserinfo)
 	mux.HandleFunc("/backchannel-logout", handleBackchannelLogout)

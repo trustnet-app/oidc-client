@@ -55,13 +55,16 @@ func pageStart(w io.Writer, title, active string) {
     <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span> %s</a>
     <nav class="nav" aria-label="Main">
       %s
+      %s
       <a href="/debug/state">State</a>
       <a href="/logout">Log out</a>
       <button class="btn ghost small" type="button" data-theme-toggle>Dark</button>
     </nav>
   </div>
 </header>
-<main class="wrap">`, html.EscapeString(title), html.EscapeString(displayLabel()), navLink("/", "Home", active == "home"))
+<main class="wrap">`, html.EscapeString(title), html.EscapeString(displayLabel()),
+		navLink("/", "Home", active == "home"),
+		navLink("/account", "Dashboard", active == "account"))
 }
 
 func navLink(href, text string, current bool) string {
@@ -73,4 +76,21 @@ func navLink(href, text string, current bool) string {
 
 func pageEnd(w io.Writer) {
 	io.WriteString(w, `</main></body></html>`)
+}
+
+// renderError is the shared failure surface for HTML routes.
+func renderError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	pageStart(w, "OIDC · error", "")
+	fmt.Fprintf(w, `<section class="page-head">
+<p class="eyebrow">Request failed</p>
+<h1>Something went wrong</h1>
+<p class="muted">%s</p>
+</section>`, html.EscapeString(message))
+	fmt.Fprintf(w, `<section class="card"><div class="card-head"><h2>Details</h2><span class="badge danger">%d</span></div><p>%s</p></section>`,
+		status, html.EscapeString(message))
+	fmt.Fprint(w, `<div class="row actions"><a class="btn" href="/">Back to home</a><a class="btn secondary" href="/account">Open dashboard</a></div>`)
+	pageEnd(w)
 }

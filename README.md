@@ -54,12 +54,13 @@ Then open <http://localhost:5556/>, pick scopes/claims, and start the flow.
 
 | Route | Purpose |
 |---|---|
-| `/` | launch form (scopes, claims, prompt, raw `claims` JSON) |
+| `/` | launch form; redirects to `/account` when a valid session exists |
 | `/start` | build the authorize URL (`?preview=1` renders it instead of following) |
-| `/callback` | code exchange, ID-token decode, OIDC `/userinfo` |
-| `/result` | per-flow result surface |
-| `/rp-userinfo` | machine-plane `/api/rp/v1/userinfo` probe (needs `MACHINE_URL`) |
-| `/logout` | RP-initiated logout via `end_session_endpoint` |
+| `/callback` | code exchange, ID-token decode, session creation, OIDC `/userinfo` |
+| `/account` | signed-in dashboard (session, identity, userinfo, probe, flow, events) |
+| `/result` | session-scoped per-flow result surface |
+| `/rp-userinfo` | session-scoped machine-plane `/api/rp/v1/userinfo` probe (needs `MACHINE_URL`) |
+| `/logout` | clears the local session, then redirects to `end_session_endpoint` |
 | `/backchannel-logout` | receives logout tokens |
 | `/purge` | receives TrustNet purge webhooks (verify needs `JWKS_URL`) |
 | `/debug/state`, `/debug/purge`, `/debug/reset` | machine-readable state |

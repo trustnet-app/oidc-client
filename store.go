@@ -253,6 +253,42 @@ func (s *store) recordSessionEvent(e sessionEvent) error {
 	return err
 }
 
+// latestSessionEvent returns the newest logout/revoke/erase event that applies
+// to a session. Login events are deliberately excluded.
+func (s *store) latestSessionEvent(x *session) (*sessionEvent, error) {
+	var e sessionEvent
+	var created int64
+	err := s.db.QueryRow(`SELECT session_hash, sub, sid, event, reason, delivery_id, created_at
+		FROM session_events
+		WHERE event IN ('logged_out', 'revoked', 'erased')
+		  AND (session_hash = ? OR (sub != '' AND sub = ?) OR (sid != '' AND sid = ?))
+		ORDER BY created_at DESC LIMIT 1`,
+		x.IDHash, x.Sub, x.SID).
+		Scan(&e.SessionHash, &e.Sub, &e.SID, &e.Event, &e.Reason, &e.DeliveryID, &created)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	e.CreatedAt = time.Unix(created, 0).UTC()
+	return &e, nil
+}
+
+// reset drops every persisted demo row. It is used by /debug/reset.
+func (s *store) reset() error {
+	for _, q := range []string{
+		`DELETE FROM sessions`,
+		`DELETE FROM session_events`,
+		`DELETE FROM webhook_deliveries`,
+	} {
+		if _, err := s.db.Exec(q); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *store) recordWebhook(d webhookRecord) error {
 	_, err := s.db.Exec(`INSERT INTO webhook_deliveries
 		(received_at, verified, kid, error, payload_json, body_len)

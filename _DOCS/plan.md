@@ -66,7 +66,7 @@ no handler is wired to them yet. Verified: `go build`, `go vet`, `go test`,
 runtime migration on a fresh DB, and a throwaway round-trip test for sessions,
 pruning, and cookies. Awaiting owner confirmation before Part 3.
 
-### [ ] Part 3 — login, dashboard, home redirect
+### [x] Part 3 — login, dashboard, home redirect
 
 - `/callback` creates the session and redirects to `/account`.
 - `/` redirects to `/account` when a session is valid.
@@ -74,6 +74,22 @@ pruning, and cookies. Awaiting owner confirmation before Part 3.
   probe, and logout cards.
 - `/result` and `/rp-userinfo` become session-scoped.
 - `/logout` clears the local session then redirects to `end_session_endpoint`.
+
+**Landed 2026-11-05:** successful callbacks now create a hashed-id SQLite
+session, set the `demo_rp_session` cookie, record a `logged_in` event, and
+redirect to `/account`. `/` redirects signed-in visitors to the dashboard and
+unknown paths now 404. `/account` renders the session, decoded-ID-token
+identity, OIDC `/userinfo`, machine-plane probe, last-flow link, and the latest
+logout/revoke/erase event for the session (none yet). `/result` requires a
+session unless the flow carries an error (denial/inspection), and `/rp-userinfo`
+uses the session's access token and re-renders either the dashboard or the
+flow. `/logout` deletes the session, records `logged_out`/`rp_initiated`, clears
+the cookie, and redirects to `end_session_endpoint` with the session's
+`id_token_hint`. `/debug/reset` also clears the SQLite tables. Verified:
+`go build`, `go vet`, `go test`, plus a runtime smoke test for home redirect,
+dashboard render, session-scoped result (401 without a session), probe 401,
+logout redirect, session deletion, and the `logged_out` event. Awaiting owner
+confirmation before Part 4.
 
 ### [ ] Part 4 — back-channel logout
 
