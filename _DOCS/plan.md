@@ -91,12 +91,26 @@ dashboard render, session-scoped result (401 without a session), probe 401,
 logout redirect, session deletion, and the `logged_out` event. Awaiting owner
 confirmation before Part 4.
 
-### [ ] Part 4 — back-channel logout
+### [x] Part 4 — back-channel logout
 
 - Serve `/backchannel` and `/backchannel-logout`.
 - Validate `logout_token` claims (`iss`, `aud`, `iat`, `events`, `sub`/`sid`,
   no `nonce`); `400` on invalid.
 - Delete sessions by `sid`, then `sub`; write a `logged_out` tombstone; `200`.
+
+**Landed 2026-11-05:** both routes share one POST handler. The decoded token is
+validated for `iss`, `aud` (string or array), a 5-minute `iat` window, the
+back-channel logout event, absence of `nonce`, and presence of `sid` or `sub`;
+invalid tokens return `400`. Sessions are deleted by `sid` in a transaction,
+falling back to `sub` when no `sid` matches. One `logged_out` tombstone is
+written per deleted session hash (and a summary event when none matched), so a
+stale browser cookie resolves to the new session-ended screen; that screen is
+shown once, clears the cookie, and the next visit renders the launch form.
+`/debug/state` still records the last valid logout token. Verified:
+`go build`, `go vet`, `go test`, plus a runtime smoke test for a valid logout,
+session deletion, tombstone rendering, stale-cookie redirect, and 400s for bad
+`iss`, `nonce`, missing `events`, and missing tokens. Awaiting owner
+confirmation before Part 5.
 
 ### [ ] Part 5 — purge webhooks
 

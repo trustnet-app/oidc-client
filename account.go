@@ -23,10 +23,45 @@ func handleAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if sess == nil {
+		ev, err := tombstoneForRequest(r)
+		if err != nil {
+			renderError(w, http.StatusInternalServerError, "Could not read the demo session.")
+			return
+		}
+		if ev != nil {
+			// The notice is shown once: consume the stale cookie, then the next
+			// visit renders the launch form.
+			clearSessionCookie(w)
+			renderSessionEnded(w, ev)
+			return
+		}
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
 	renderAccount(w, sess, nil)
+}
+
+func renderSessionEnded(w http.ResponseWriter, ev *sessionEvent) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	pageStart(w, "OIDC · session ended", "account")
+
+	fmt.Fprint(w, `<div style="max-width:620px;margin:2rem auto 0"><div class="card">`)
+	fmt.Fprintf(w, `<div class="card-head"><h1>You were signed out by TrustNet</h1><span class="badge warn">%s</span></div>`,
+		html.EscapeString(ev.Event))
+	fmt.Fprint(w, `<p>The demo RP session ended because TrustNet notified it server-to-server. Your browser cookie is no longer valid.</p>`)
+	fmt.Fprint(w, `<dl class="kv" style="margin-top:1rem">`)
+	fmt.Fprintf(w, `<dt>Event</dt><dd>%s</dd><dt>Received</dt><dd>%s</dd>`,
+		html.EscapeString(eventLabel(ev.Event)), formatTime(ev.CreatedAt))
+	if ev.Sub != "" {
+		fmt.Fprintf(w, `<dt>sub</dt><dd class="mono">%s</dd>`, html.EscapeString(ev.Sub))
+	}
+	if ev.SID != "" {
+		fmt.Fprintf(w, `<dt>sid</dt><dd class="mono">%s</dd>`, html.EscapeString(ev.SID))
+	}
+	fmt.Fprint(w, `</dl><div class="row" style="margin-top:1.2rem"><a class="btn" href="/">Log in again</a></div></div>`)
+	fmt.Fprint(w, `<p class="muted" style="margin-top:1rem">This notice is shown once from the short-lived tombstone and disappears after the one-hour TTL.</p></div>`)
+	pageEnd(w)
 }
 
 // GET /logout — clear the local session, then send the browser to the issuer's

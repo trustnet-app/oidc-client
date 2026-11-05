@@ -52,6 +52,14 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/account", http.StatusSeeOther)
 		return
 	}
+	if ev, err := tombstoneForRequest(r); err != nil {
+		renderError(w, http.StatusInternalServerError, "Could not read the demo session.")
+		return
+	} else if ev != nil {
+		// Keep the ended/erased screen on the /account route.
+		http.Redirect(w, r, "/account", http.StatusSeeOther)
+		return
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	pageStart(w, "OIDC · test client", "home")
 
@@ -280,17 +288,6 @@ func handleResult(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	renderResult(w, f)
-}
-
-// POST /backchannel-logout — the issuer calls this on revoke/logout. Records the
-// decoded logout token.
-func handleBackchannelLogout(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	claims := decodeJWT(r.FormValue("logout_token"))
-	lastLogoutMu.Lock()
-	lastLogout = claims
-	lastLogoutMu.Unlock()
-	w.WriteHeader(http.StatusOK)
 }
 
 // GET /debug/state — machine-readable dump for assertions the HTML redacts.

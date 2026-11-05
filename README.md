@@ -61,7 +61,7 @@ Then open <http://localhost:5556/>, pick scopes/claims, and start the flow.
 | `/result` | session-scoped per-flow result surface |
 | `/rp-userinfo` | session-scoped machine-plane `/api/rp/v1/userinfo` probe (needs `MACHINE_URL`) |
 | `/logout` | clears the local session, then redirects to `end_session_endpoint` |
-| `/backchannel-logout` | receives logout tokens |
+| `/backchannel`, `/backchannel-logout` | validates logout-token claims and ends matching sessions |
 | `/purge` | receives TrustNet purge webhooks (verify needs `JWKS_URL`) |
 | `/debug/state`, `/debug/purge`, `/debug/reset` | machine-readable state |
 

@@ -253,6 +253,83 @@ func (s *store) recordSessionEvent(e sessionEvent) error {
 	return err
 }
 
+// deleteSessionsForLogout removes sessions matching sid first, then sub when no
+// sid match exists. It returns the id hashes it deleted so the caller can write
+// one tombstone per stale cookie.
+func (s *store) deleteSessionsForLogout(sid, sub string) ([]string, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	hashes, err := sessionHashes(tx, "sid", sid)
+	if err != nil {
+		return nil, err
+	}
+	if len(hashes) == 0 && sub != "" {
+		hashes, err = sessionHashes(tx, "sub", sub)
+		if err != nil {
+			return nil, err
+		}
+	}
+	for _, h := range hashes {
+		if _, err := tx.Exec(`DELETE FROM sessions WHERE id_hash = ?`, h); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return hashes, nil
+}
+
+func sessionHashes(tx *sql.Tx, column, value string) ([]string, error) {
+	if value == "" {
+		return nil, nil
+	}
+	if column != "sid" && column != "sub" {
+		return nil, fmt.Errorf("unsupported session column %q", column)
+	}
+	rows, err := tx.Query(`SELECT id_hash FROM sessions WHERE `+column+` = ?`, value)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var hashes []string
+	for rows.Next() {
+		var h string
+		if err := rows.Scan(&h); err != nil {
+			return nil, err
+		}
+		hashes = append(hashes, h)
+	}
+	return hashes, rows.Err()
+}
+
+// tombstoneByIDHash resolves a stale browser cookie to the newest
+// logout/revoke/erase event recorded for that session.
+func (s *store) tombstoneByIDHash(idHash string) (*sessionEvent, error) {
+	if idHash == "" {
+		return nil, nil
+	}
+	var e sessionEvent
+	var created int64
+	err := s.db.QueryRow(`SELECT session_hash, sub, sid, event, reason, delivery_id, created_at
+		FROM session_events
+		WHERE session_hash = ? AND event IN ('logged_out', 'revoked', 'erased')
+		ORDER BY created_at DESC LIMIT 1`, idHash).
+		Scan(&e.SessionHash, &e.Sub, &e.SID, &e.Event, &e.Reason, &e.DeliveryID, &created)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	e.CreatedAt = time.Unix(created, 0).UTC()
+	return &e, nil
+}
+
 // latestSessionEvent returns the newest logout/revoke/erase event that applies
 // to a session. Login events are deliberately excluded.
 func (s *store) latestSessionEvent(x *session) (*sessionEvent, error) {

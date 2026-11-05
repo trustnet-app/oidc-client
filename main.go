@@ -44,6 +44,7 @@ func main() {
 	mux.HandleFunc("/account", handleAccount)
 	mux.HandleFunc("/result", handleResult)
 	mux.HandleFunc("/rp-userinfo", handleRpUserinfo)
+	mux.HandleFunc("/backchannel", handleBackchannelLogout)
 	mux.HandleFunc("/backchannel-logout", handleBackchannelLogout)
 	mux.HandleFunc("/logout", handleLogout)
 	// The RP purge webhook: TrustNet POSTs a signed revocation here after a user
