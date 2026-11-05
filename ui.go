@@ -1,0 +1,76 @@
+package main
+
+import (
+	_ "embed"
+	"fmt"
+	"html"
+	"io"
+	"net/http"
+)
+
+// The app and the _DESIGN catalogue share one visual language. Embedding the
+// catalogue's stylesheet and theme script keeps the implementation from drifting
+// away from the approved renderings.
+//
+//go:embed _DESIGN/styles.css
+var appStyles string
+
+//go:embed _DESIGN/design.js
+var appScript string
+
+func handleStyles(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	io.WriteString(w, appStyles)
+}
+
+func handleDesignScript(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	io.WriteString(w, appScript)
+}
+
+func displayLabel() string {
+	if env.Label == "" {
+		return "OIDC test client"
+	}
+	return env.Label
+}
+
+// pageStart writes the shared shell: header, nav, and the opening <main>.
+// Handlers append their content and finish with pageEnd.
+func pageStart(w io.Writer, title, active string) {
+	fmt.Fprintf(w, `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>%s</title>
+<link rel="stylesheet" href="/styles.css">
+<script src="/design.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span> %s</a>
+    <nav class="nav" aria-label="Main">
+      %s
+      <a href="/debug/state">State</a>
+      <a href="/logout">Log out</a>
+      <button class="btn ghost small" type="button" data-theme-toggle>Dark</button>
+    </nav>
+  </div>
+</header>
+<main class="wrap">`, html.EscapeString(title), html.EscapeString(displayLabel()), navLink("/", "Home", active == "home"))
+}
+
+func navLink(href, text string, current bool) string {
+	if current {
+		return fmt.Sprintf(`<a href="%s" aria-current="page">%s</a>`, href, text)
+	}
+	return fmt.Sprintf(`<a href="%s">%s</a>`, href, text)
+}
+
+func pageEnd(w io.Writer) {
+	io.WriteString(w, `</main></body></html>`)
+}

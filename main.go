@@ -20,6 +20,8 @@ func main() {
 	loadConfig()
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/styles.css", handleStyles)
+	mux.HandleFunc("/design.js", handleDesignScript)
 	mux.HandleFunc("/", handleHome)
 	mux.HandleFunc("/start", handleStart)
 	mux.HandleFunc("/callback", handleCallback)

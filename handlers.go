@@ -14,30 +14,10 @@ import (
 	"time"
 )
 
-const page = `<!doctype html><meta charset=utf-8>
-<title>OIDC · test client</title>
-<style>
-body{font-family:ui-sans-serif,system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#1a1a1a}
-h1{font-size:1.3rem} h2{font-size:1rem;margin-top:1.5rem}
-.card{border:1px solid #ddd;border-radius:8px;padding:1rem;margin:.75rem 0}
-button,a.button{font:inherit;padding:.5rem 1rem;border-radius:6px;border:1px solid #185FA5;background:#185FA5;color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
-button.secondary{background:#fff;color:#185FA5}
-pre{background:#f7f7f7;padding:.75rem;border-radius:6px;overflow:auto;font-size:.8rem}
-textarea,input{width:100%;font-size:.9rem}
-label{display:block;margin:.5rem 0 .2rem}
-.muted{color:#666;font-size:.85rem}
-.ppid{color:#185FA5;font-weight:600}
-.claims{display:grid;grid-template-columns:repeat(auto-fill,minmax(11rem,1fr));gap:.15rem 1rem}
-.claim{display:flex;align-items:center;gap:.4rem;font-size:.85rem;margin:0}
-.claim input{width:auto}
-fieldset{border:1px solid #ddd;border-radius:6px;margin:.5rem 0;padding:.5rem .75rem}
-legend{font-size:.85rem;font-weight:600;padding:0 .35rem}
-</style>`
-
 // requestableClaims mirrors the backend's claims.RequestableNames(): the
-// storeable scalar catalog plus the derived booleans. The form offers a
-// checkbox for each so a tester can request claims directly instead of typing
-// the `claims` JSON by hand. Sorted for stable rendering.
+// storeable scalar catalog plus the derived booleans. Every claim is offered in
+// one panel so a tester can register or deregister any of them directly instead
+// of typing the `claims` JSON by hand. Sorted for stable rendering.
 var requestableClaims = []string{
 	"birthdate", "email", "email_verified", "family_name", "gender",
 	"given_name", "locale", "middle_name", "name", "nickname", "over_18",
@@ -45,28 +25,10 @@ var requestableClaims = []string{
 	"profile", "website", "zoneinfo",
 }
 
-// registeredClaims is the demo clients' registered claim ceiling: the claims
-// the RPs declared at registration. The form groups them apart from the rest of
-// the requestable catalog, so a tester can see — and request — an *unregistered*
-// claim to exercise the consent ceiling.
-var registeredClaims = map[string]bool{
-	"email": true, "email_verified": true, "given_name": true, "family_name": true,
-	"phone_number": true, "phone_number_verified": true,
-}
-
-// defaultClaims is the subset of registeredClaims pre-checked on the form.
+// defaultClaims is the subset pre-checked on the form.
 var defaultClaims = map[string]bool{
 	"email": true, "email_verified": true, "given_name": true, "family_name": true,
 }
-
-// registeredScopes mirrors the client `scope` registered in the seed. defaultScopes
-// is the subset pre-checked: it keeps the long-standing request
-// `openid email profile` while leaving `offline_access` available to tick.
-var (
-	registeredScopes   = []string{"openid", "offline_access", "email", "profile", "phone"}
-	defaultScopes      = map[string]bool{"openid": true, "email": true, "profile": true}
-	unregisteredScopes = []string{"address"}
-)
 
 // promptValues are the OIDC `prompt` values the form offers as ticks. Only
 // `consent` is honoured by persona-api (force a full review even on an
@@ -77,60 +39,85 @@ var promptValues = []string{"consent"}
 // GET / — the launch form.
 func handleHome(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprint(w, page)
-	fmt.Fprintf(w, `<h1 data-testid="rp-label">%s</h1>`, html.EscapeString(env.Label))
-	fmt.Fprintf(w, `<p class=muted>client_id <code data-testid="rp-client-id">%s</code> · redirect <code>%s</code> · issuer <code>%s</code></p>`,
-		html.EscapeString(env.ClientID), html.EscapeString(env.Redirect), html.EscapeString(disc.Issuer))
-	fmt.Fprint(w, `<form method=get action="/start" class=card>`)
-	fmt.Fprint(w, `<fieldset data-testid="scopes-registered"><legend>Registered scopes</legend><div class=claims>`)
-	for _, name := range registeredScopes {
-		checked := ""
-		if defaultScopes[name] {
-			checked = " checked"
-		}
-		fmt.Fprintf(w, `<label class=claim><input type=checkbox name=scope value="%s"%s> %s</label>`,
-			html.EscapeString(name), checked, html.EscapeString(name))
-	}
-	fmt.Fprint(w, `</div></fieldset>`)
-	fmt.Fprint(w, `<fieldset data-testid="scopes-unregistered"><legend>Unregistered scopes (not in the client registration)</legend><div class=claims>`)
-	for _, name := range unregisteredScopes {
-		fmt.Fprintf(w, `<label class=claim><input type=checkbox name=scope value="%s"> %s</label>`,
-			html.EscapeString(name), html.EscapeString(name))
-	}
-	fmt.Fprint(w, `</div></fieldset>`)
-	fmt.Fprint(w, `<fieldset data-testid="claims-registered"><legend>Registered claims (the RP's declared ceiling — tick to request each as an <code>id_token</code> claim)</legend><div class=claims>`)
+	pageStart(w, "OIDC · test client", "home")
+
+	fmt.Fprintf(w, `<section class="page-head">
+<p class="eyebrow">Authorization Code Flow · Demo Client</p>
+<h1 data-testid="rp-label">%s</h1>
+<p class="lede">This inspector signs you in with OpenID Connect. Choose the claims
+to request, then start the authorization-code flow. The browser is sent to the
+issuer and returns with an ID token, an access token, and only the claims you
+approved.</p>
+<div class="meta-pills">
+  <span class="meta-pill"><span class="meta-label">client_id</span><code data-testid="rp-client-id">%s</code></span>
+  <span class="meta-sep" aria-hidden="true">·</span>
+  <span class="meta-pill"><span class="meta-label">redirect</span><code>%s</code></span>
+  <span class="meta-sep" aria-hidden="true">·</span>
+  <span class="meta-pill"><span class="meta-label">issuer</span><code>%s</code></span>
+</div>
+<div class="notice" role="note"><span class="notice-icon" aria-hidden="true">i</span><span>You are signed out. Starting login sends the browser to the issuer.</span></div>
+</section>`, html.EscapeString(env.Label), html.EscapeString(env.ClientID),
+		html.EscapeString(env.Redirect), html.EscapeString(disc.Issuer))
+
+	fmt.Fprint(w, `<form method="get" action="/start" class="grid">`)
+
+	fmt.Fprint(w, `<fieldset class="panel" data-testid="scope">
+<legend class="sr-only">Scope</legend>
+<div class="panel-head" aria-hidden="true"><span class="panel-title">Scope</span><span class="panel-badge">OAuth 2.0 / OIDC</span></div>
+<div class="checks"><label class="check tile"><input type="checkbox" name="scope" value="openid" checked> <span>openid</span> <span class="req">required</span></label></div>
+<p class="hint">The <code>openid</code> scope is required to request an ID token.</p>
+</fieldset>`)
+
+	fmt.Fprint(w, `<fieldset class="panel" data-testid="claims">
+<legend class="sr-only">Claims</legend>
+<div class="panel-head" aria-hidden="true"><span class="panel-title">Claims</span><span class="panel-meta">Standard OpenID Spec</span></div>
+<p class="hint">Select any claims to request. Every claim below can be registered or deregistered for this demo client.</p>
+<div class="checks claim-grid">`)
 	for _, name := range requestableClaims {
-		if !registeredClaims[name] {
-			continue
-		}
 		checked := ""
 		if defaultClaims[name] {
 			checked = " checked"
 		}
-		fmt.Fprintf(w, `<label class=claim><input type=checkbox name=claim value="%s"%s> %s</label>`,
+		fmt.Fprintf(w, `<label class="check tile"><input type="checkbox" name="claim" value="%s"%s> <span>%s</span></label>`,
 			html.EscapeString(name), checked, html.EscapeString(name))
 	}
 	fmt.Fprint(w, `</div></fieldset>`)
-	fmt.Fprint(w, `<fieldset data-testid="claims-unregistered"><legend>Unregistered claims (not declared by the RP — requesting one exercises the ceiling)</legend><div class=claims>`)
-	for _, name := range requestableClaims {
-		if registeredClaims[name] {
-			continue
-		}
-		fmt.Fprintf(w, `<label class=claim><input type=checkbox name=claim value="%s"> %s</label>`,
-			html.EscapeString(name), html.EscapeString(name))
-	}
-	fmt.Fprint(w, `</div></fieldset>`)
-	fmt.Fprint(w, `<fieldset data-testid="prompt"><legend>prompt (OIDC — tick to send <code>consent</code>: force a full review even on an unchanged grant; blank omits it)</legend><div class=claims>`)
+
+	fmt.Fprint(w, `<fieldset class="panel" data-testid="prompt">
+<legend class="sr-only">prompt (OIDC)</legend>
+<div class="panel-head" aria-hidden="true"><span class="panel-title">prompt (OIDC)</span><span class="panel-meta">Interaction Control</span></div>
+<div class="checks">`)
 	for _, name := range promptValues {
-		fmt.Fprintf(w, `<label class=claim><input type=checkbox name=prompt value="%s"> %s</label>`,
+		fmt.Fprintf(w, `<label class="check tile"><input type="checkbox" name="prompt" value="%s"> <span>%s</span></label>`,
 			html.EscapeString(name), html.EscapeString(name))
 	}
 	fmt.Fprint(w, `</div></fieldset>`)
-	fmt.Fprint(w, `<label>OIDC <code>claims</code> request parameter (JSON, optional — overrides the checkboxes)</label>`)
-	fmt.Fprint(w, `<textarea name=claims rows=4 placeholder='{"id_token":{"email":{"essential":true}}}'></textarea>`)
-	fmt.Fprint(w, `<p><button type=submit data-testid="start">Start login</button> <button type=submit name=preview value=1 class=secondary data-testid="preview">Preview request</button></p>`)
+
+	fmt.Fprint(w, `<div class="card code-card">
+<div class="code-card-head"><label for="claims">OIDC <code>claims</code> request parameter (JSON, optional — overrides the checkboxes)</label><span class="panel-meta">JSON Editor</span></div>
+<div class="code-window">
+  <div class="code-window-bar"><span class="code-dots" aria-hidden="true"><i class="dot-red"></i><i class="dot-amber"></i><i class="dot-green"></i><span class="code-file">claims_payload.json</span></span><span class="code-enc">UTF-8</span></div>
+  <div class="code-body">
+    <div class="code-gutter" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span></div>
+    <textarea id="claims" name="claims" rows="4" placeholder='{"id_token":{"email":{"essential":true}}}'></textarea>
+  </div>
+</div>
+</div>`)
+
+	fmt.Fprint(w, `<div class="row actions">
+<button class="btn btn-lg" type="submit" data-testid="start">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+  Start login
+</button>
+<button class="btn secondary btn-lg" type="submit" name="preview" value="1" data-testid="preview">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+  Preview request
+</button>
+</div>`)
+
 	fmt.Fprint(w, `</form>`)
-	fmt.Fprint(w, `<p class=muted><a href="/debug/state">/debug/state</a> · <a href="/logout">RP-initiated logout</a></p>`)
+	fmt.Fprint(w, `<p class="footer-note">Raw flow state lives at <a href="/debug/state">/debug/state</a>. RP-initiated logout is at <a href="/logout">/logout</a>.</p>`)
+	pageEnd(w)
 }
 
 // GET /start — build the authorize URL and send the browser to the issuer.
@@ -139,7 +126,7 @@ func handleStart(w http.ResponseWriter, r *http.Request) {
 	// space-delimited form the authorize request expects.
 	scope := strings.Join(r.URL.Query()["scope"], " ")
 	if strings.TrimSpace(scope) == "" {
-		scope = "openid email profile"
+		scope = "openid"
 	}
 	claimsParam := strings.TrimSpace(r.URL.Query().Get("claims"))
 	if claimsParam == "" {

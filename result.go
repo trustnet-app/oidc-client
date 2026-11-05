@@ -20,30 +20,34 @@ func pretty(v any) string {
 func renderResult(w http.ResponseWriter, f *flowState) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	fmt.Fprint(w, page)
-	fmt.Fprintf(w, `<h1>Flow result — %s</h1>`, html.EscapeString(env.Label))
-	fmt.Fprintf(w, `<p class=muted>state <code data-testid="flow-state">%s</code></p>`, html.EscapeString(f.State))
+	pageStart(w, "OIDC · result", "result")
+
+	fmt.Fprintf(w, `<section class="page-head">
+<p class="eyebrow">Authorization Code Flow · Result</p>
+<h1>Flow result — %s</h1>
+<p class="muted">state <code data-testid="flow-state">%s</code></p>
+</section>`, html.EscapeString(env.Label), html.EscapeString(f.State))
 
 	if f.Error != "" {
-		fmt.Fprintf(w, `<div class=card><h2>Error</h2><pre data-testid="error">%s</pre></div>`,
+		fmt.Fprintf(w, `<section class="card"><div class="card-head"><h2>Error</h2><span class="badge danger">failed</span></div><pre data-testid="error">%s</pre></section>`,
 			html.EscapeString(f.Error))
 	}
 
 	if f.Code != "" {
-		fmt.Fprintf(w, `<div class=card><h2>Authorization code</h2><pre data-testid="code">%s</pre></div>`,
+		fmt.Fprintf(w, `<section class="card"><div class="card-head"><h2>Authorization code</h2><span class="badge">received</span></div><pre data-testid="code">%s</pre></section>`,
 			html.EscapeString(f.Code))
 	}
 
 	if len(f.IDClaims) > 0 {
 		sub, _ := f.IDClaims["sub"].(string)
-		fmt.Fprint(w, `<div class=card><h2>ID token — sub (PPID)</h2>`)
-		fmt.Fprintf(w, `<p class=ppid data-testid="sub">%s</p>`, html.EscapeString(sub))
-		fmt.Fprintf(w, `<h2>ID token claims</h2><pre data-testid="id-claims">%s</pre></div>`,
+		fmt.Fprint(w, `<section class="card"><div class="card-head"><h2>ID token</h2><span class="badge ok">decoded</span></div>`)
+		fmt.Fprintf(w, `<dl class="kv"><dt>sub (PPID)</dt><dd class="mono" data-testid="sub">%s</dd></dl>`, html.EscapeString(sub))
+		fmt.Fprintf(w, `<h2>Claims</h2><pre data-testid="id-claims">%s</pre></section>`,
 			html.EscapeString(pretty(f.IDClaims)))
 	}
 
 	if len(f.UserInfo) > 0 {
-		fmt.Fprintf(w, `<div class=card><h2>/userinfo</h2><pre data-testid="userinfo">%s</pre></div>`,
+		fmt.Fprintf(w, `<section class="card"><div class="card-head"><h2>OIDC /userinfo</h2><span class="badge accent">userinfo</span></div><pre data-testid="userinfo">%s</pre></section>`,
 			html.EscapeString(pretty(f.UserInfo)))
 	}
 
@@ -61,7 +65,7 @@ func renderResult(w http.ResponseWriter, f *flowState) {
 				keys[k] = v
 			}
 		}
-		fmt.Fprintf(w, `<div class=card><h2>Token response (values redacted)</h2><pre data-testid="token-keys">%s</pre></div>`,
+		fmt.Fprintf(w, `<section class="card"><div class="card-head"><h2>Token response (values redacted)</h2><span class="badge">redacted</span></div><pre data-testid="token-keys">%s</pre></section>`,
 			html.EscapeString(pretty(keys)))
 	}
 
@@ -71,18 +75,18 @@ func renderResult(w http.ResponseWriter, f *flowState) {
 		// /api/rp/v1/userinfo with the consent-time token. Unlike the token card
 		// this reveals the token and the raw request/response — but only after an
 		// explicit click, and it shows the client its OWN credential + data.
-		fmt.Fprint(w, `<div class=card><h2>TrustNet machine-plane userinfo</h2>`)
-		fmt.Fprintf(w, `<form method=post action="/rp-userinfo">`+
-			`<input type=hidden name=state value="%s">`+
-			`<button type=submit data-testid="test-userinfo">Test userinfo endpoint</button></form>`,
+		fmt.Fprint(w, `<section class="card"><div class="card-head"><h2>TrustNet machine-plane userinfo</h2><span class="badge accent">probe</span></div>`)
+		fmt.Fprint(w, `<p class="muted">The RP's own consent-time access token, sent to <code>/api/rp/v1/userinfo</code>.</p>`)
+		fmt.Fprintf(w, `<form method="post" action="/rp-userinfo"><input type="hidden" name="state" value="%s"><button class="btn secondary" type="submit" data-testid="test-userinfo">Test userinfo endpoint</button></form>`,
 			html.EscapeString(f.State))
 		if f.MachineProbe != nil {
 			renderMachineProbe(w, f.MachineProbe)
 		}
-		fmt.Fprint(w, `</div>`)
+		fmt.Fprint(w, `</section>`)
 	}
 
-	fmt.Fprint(w, `<p><a class=button href="/">New flow</a> <a class=muted href="/debug/state">/debug/state</a></p>`)
+	fmt.Fprint(w, `<div class="row actions"><a class="btn" href="/">New flow</a><a class="btn secondary" href="/debug/state">/debug/state</a></div>`)
+	pageEnd(w)
 }
 
 // renderAuthRequest shows the exact authorization request the client sends, so
@@ -92,22 +96,28 @@ func renderResult(w http.ResponseWriter, f *flowState) {
 func renderAuthRequest(w http.ResponseWriter, f *flowState) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	fmt.Fprint(w, page)
-	fmt.Fprintf(w, `<h1>Authorization request — %s</h1>`, html.EscapeString(env.Label))
-	fmt.Fprint(w, `<p class=muted>Nothing has been sent yet. This is the exact request the browser will send to the issuer.</p>`)
+	pageStart(w, "OIDC · authorization preview", "preview")
 
-	fmt.Fprintf(w, `<div class=card><h2>Request URL</h2><pre data-testid="auth-request-url">%s</pre></div>`,
+	fmt.Fprintf(w, `<section class="page-head">
+<p class="eyebrow">Authorization Code Flow · Preview</p>
+<h1>Authorization request — %s</h1>
+<p class="muted">Nothing has been sent yet. This is the exact request the browser will send to the issuer.</p>
+</section>`, html.EscapeString(env.Label))
+
+	fmt.Fprint(w, `<section class="card"><div class="card-head"><h2>Request URL</h2><button class="btn ghost small" type="button" data-copy="request-url">Copy</button></div>`)
+	fmt.Fprintf(w, `<pre id="request-url" data-testid="auth-request-url">%s</pre></section>`,
 		html.EscapeString(f.AuthURL))
 
 	params := "<could not parse request URL>"
 	if u, err := url.Parse(f.AuthURL); err == nil {
 		params = formatQuery(u.Query())
 	}
-	fmt.Fprintf(w, `<div class=card><h2>Query parameters (decoded)</h2><pre data-testid="auth-request-params">%s</pre></div>`,
+	fmt.Fprintf(w, `<section class="card"><div class="card-head"><h2>Query parameters (decoded)</h2><span class="badge">decoded</span></div><pre data-testid="auth-request-params">%s</pre></section>`,
 		html.EscapeString(params))
 
-	fmt.Fprintf(w, `<p><a class=button href="%s">Continue to issuer →</a> · <a href="/">← back</a></p>`,
+	fmt.Fprintf(w, `<div class="row actions"><a class="btn" href="%s">Continue to issuer</a><a class="btn secondary" href="/">Back</a></div>`,
 		html.EscapeString(f.AuthURL))
+	pageEnd(w)
 }
 
 // formatQuery renders authorize query parameters for inspection, one per line

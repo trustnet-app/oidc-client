@@ -62,6 +62,9 @@ Then open <http://localhost:5556/>, pick scopes/claims, and start the flow.
 
 ## Notes
 
+- The live pages embed `_DESIGN/styles.css` and `_DESIGN/design.js` and serve
+  them as `/styles.css` and `/design.js`, so the app and the screen catalogue
+  share one visual language.
 - The RP's `sub` is the PPID; `account_id`/`persona_id` must never appear.
 - The registered `REDIRECT_URI` must exist on the client in each environment;
   this tool deliberately does **not** create or update clients.
