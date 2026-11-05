@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -317,106 +316,11 @@ func handleDebugReset(w http.ResponseWriter, r *http.Request) {
 			log.Printf("debug reset: store: %v", err)
 		}
 	}
+	if next := r.FormValue("next"); strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") {
+		http.Redirect(w, r, next, http.StatusSeeOther)
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// POST /purge — TrustNet delivers a signed revocation here. The client verifies
-// the compact JWS against TrustNet's JWKS (when JWKS_URL is configured) and
-// records the decoded payload. It always answers 200: an invalid body is still
-// recorded (`verified:false`, with the error).
-func handlePurge(w http.ResponseWriter, r *http.Request) {
-	body, _ := io.ReadAll(io.LimitReader(r.Body, 1<<20))
-	rec := purgeDelivery{ReceivedAt: time.Now(), BodyLen: len(body)}
-	if env.JWKSURL == "" {
-		rec.Error = "JWKS_URL not configured"
-	} else if payload, kid, err := verifyWebhookJWS(string(body)); err != nil {
-		rec.Error = err.Error()
-	} else {
-		rec.Verified = true
-		rec.Kid = kid
-		rec.Payload = payload
-	}
-	recordPurge(rec)
-	w.WriteHeader(http.StatusOK)
-}
-
-// GET /debug/purge — machine-readable purge deliveries.
-func handleDebugPurge(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	json.NewEncoder(w).Encode(map[string]any{"purge_deliveries": allPurges()})
-}
-
-// verifyWebhookJWS verifies a compact EdDSA JWS against TrustNet's JWKS and
-// returns the decoded payload and the signing kid.
-func verifyWebhookJWS(compact string) (map[string]any, string, error) {
-	parts := strings.Split(compact, ".")
-	if len(parts) != 3 {
-		return nil, "", fmt.Errorf("malformed JWS")
-	}
-	hb, err := base64.RawURLEncoding.DecodeString(parts[0])
-	if err != nil {
-		return nil, "", fmt.Errorf("header: %w", err)
-	}
-	var h struct {
-		Alg string `json:"alg"`
-		Kid string `json:"kid"`
-	}
-	if err := json.Unmarshal(hb, &h); err != nil {
-		return nil, "", fmt.Errorf("header json: %w", err)
-	}
-	if h.Alg != "EdDSA" {
-		return nil, "", fmt.Errorf("alg %q, want EdDSA", h.Alg)
-	}
-	pub, err := jwksKey(h.Kid)
-	if err != nil {
-		return nil, "", err
-	}
-	sig, err := base64.RawURLEncoding.DecodeString(parts[2])
-	if err != nil {
-		return nil, "", fmt.Errorf("signature: %w", err)
-	}
-	if !ed25519.Verify(pub, []byte(parts[0]+"."+parts[1]), sig) {
-		return nil, "", fmt.Errorf("signature does not verify")
-	}
-	pb, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return nil, "", fmt.Errorf("payload: %w", err)
-	}
-	var payload map[string]any
-	if err := json.Unmarshal(pb, &payload); err != nil {
-		return nil, "", fmt.Errorf("payload json: %w", err)
-	}
-	return payload, h.Kid, nil
-}
-
-// jwksKey fetches TrustNet's JWKS and returns the Ed25519 public key for kid.
-func jwksKey(kid string) (ed25519.PublicKey, error) {
-	resp, err := httpc.Get(env.JWKSURL)
-	if err != nil {
-		return nil, fmt.Errorf("fetch JWKS: %w", err)
-	}
-	defer resp.Body.Close()
-	var set struct {
-		Keys []struct {
-			Kid string `json:"kid"`
-			X   string `json:"x"`
-		} `json:"keys"`
-	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&set); err != nil {
-		return nil, fmt.Errorf("decode JWKS: %w", err)
-	}
-	for _, k := range set.Keys {
-		if k.Kid != kid {
-			continue
-		}
-		raw, err := base64.RawURLEncoding.DecodeString(k.X)
-		if err != nil || len(raw) != ed25519.PublicKeySize {
-			return nil, fmt.Errorf("key %q is not a 32-byte Ed25519 key", kid)
-		}
-		return ed25519.PublicKey(raw), nil
-	}
-	return nil, fmt.Errorf("kid %q not found in JWKS", kid)
 }
 
 // --- token helpers -----------------------------------------------------------

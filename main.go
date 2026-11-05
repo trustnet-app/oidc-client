@@ -50,6 +50,7 @@ func main() {
 	// The RP purge webhook: TrustNet POSTs a signed revocation here after a user
 	// revokes; /debug/purge exposes what arrived. Verification needs JWKS_URL.
 	mux.HandleFunc("/purge", handlePurge)
+	mux.HandleFunc("/webhooks", handleWebhooks)
 	mux.HandleFunc("/debug/purge", handleDebugPurge)
 	mux.HandleFunc("/debug/state", handleDebugState)
 	mux.HandleFunc("/debug/reset", handleDebugReset)

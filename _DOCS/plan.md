@@ -112,7 +112,7 @@ session deletion, tombstone rendering, stale-cookie redirect, and 400s for bad
 `iss`, `nonce`, missing `events`, and missing tokens. Awaiting owner
 confirmation before Part 5.
 
-### [ ] Part 5 — purge webhooks
+### [x] Part 5 — purge webhooks
 
 - Validate the Ed25519 JWS (cached JWKS) and payload
   (`event`, `client_id`, `subs`, `reason`, `delivery_id`).
@@ -120,6 +120,22 @@ confirmation before Part 5.
   `revoked` / `erased` tombstones.
 - Record every delivery; expose `/webhooks` and `/debug/purge`.
 - Stale-cookie visits render `screen-session-ended` or `screen-account-erased`.
+
+**Landed 2026-11-05:** `/purge` verifies the compact Ed25519 JWS against a
+5-minute JWKS cache (refreshing on an unknown `kid`, falling back to stale keys
+when the fetch fails), then validates `event`, `client_id`, `subs`, `reason`,
+and `delivery_id`. Verified `access.revoked` / `account.erased` deliveries
+delete matching sessions, write `revoked` / `erased` tombstones per session
+hash, and erase in-memory flows for erasures. Every delivery is stored in
+SQLite; `PURGE_STRICT=true` (default) returns `400` for invalid/unverified
+bodies, while `false` records and returns `200`. `/debug/purge` reads the store,
+and the new public `/webhooks` page lists purge deliveries and back-channel
+logout events, with Refresh, Reset (`POST /debug/reset?next=/webhooks`), and
+Open JSON actions. Stale cookies now render the session-ended or account-erased
+screen once and consume the cookie. Verified: `go build`, `go vet`, `go test`,
+plus a runtime test with a local Ed25519 JWKS covering erasure, revocation,
+invalid signature/payload, strict/non-strict responses, tombstone rendering,
+the webhook log, and reset. Awaiting owner confirmation before Part 6.
 
 ### [ ] Part 6 — tests, docs, deployment
 

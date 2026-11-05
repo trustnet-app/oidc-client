@@ -58,12 +58,12 @@ type sessionEvent struct {
 
 // webhookRecord is one received purge delivery.
 type webhookRecord struct {
-	ReceivedAt time.Time
-	Verified   bool
-	Kid        string
-	Error      string
-	Payload    map[string]any
-	BodyLen    int
+	ReceivedAt time.Time      `json:"received_at"`
+	Verified   bool           `json:"verified"`
+	Kid        string         `json:"kid,omitempty"`
+	Error      string         `json:"error,omitempty"`
+	Payload    map[string]any `json:"payload,omitempty"`
+	BodyLen    int            `json:"body_len"`
 }
 
 func openStore(path string, ttl time.Duration) (*store, error) {
@@ -399,6 +399,34 @@ func (s *store) recentWebhooks(limit int) ([]webhookRecord, error) {
 		d.Verified = verified != 0
 		d.Payload = decodeMap(payload)
 		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+// recentLogoutEvents lists verified back-channel logout deliveries for the
+// /webhooks page. Purge events are listed from webhook_deliveries instead.
+func (s *store) recentLogoutEvents(limit int) ([]sessionEvent, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := s.db.Query(`SELECT session_hash, sub, sid, event, reason, delivery_id, created_at
+		FROM session_events
+		WHERE event = 'logged_out' AND reason = 'backchannel_logout'
+		ORDER BY created_at DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []sessionEvent
+	for rows.Next() {
+		var e sessionEvent
+		var created int64
+		if err := rows.Scan(&e.SessionHash, &e.Sub, &e.SID, &e.Event, &e.Reason, &e.DeliveryID, &created); err != nil {
+			return nil, err
+		}
+		e.CreatedAt = time.Unix(created, 0).UTC()
+		out = append(out, e)
 	}
 	return out, rows.Err()
 }

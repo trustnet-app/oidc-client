@@ -265,36 +265,7 @@ var (
 	// Most recent logout token received on the back-channel.
 	lastLogout   map[string]any
 	lastLogoutMu sync.Mutex
-
-	// Purge webhooks received. One entry per POST /purge; /debug/purge exposes
-	// what arrived and whether its JWS verified against TrustNet's JWKS.
-	purgeMu         sync.Mutex
-	purgeDeliveries []purgeDelivery
 )
-
-// purgeDelivery is one received (and verification-attempted) purge webhook.
-type purgeDelivery struct {
-	ReceivedAt time.Time      `json:"received_at"`
-	Verified   bool           `json:"verified"`
-	Kid        string         `json:"kid,omitempty"`
-	Error      string         `json:"error,omitempty"`
-	Payload    map[string]any `json:"payload,omitempty"`
-	BodyLen    int            `json:"body_len"`
-}
-
-func recordPurge(d purgeDelivery) {
-	purgeMu.Lock()
-	defer purgeMu.Unlock()
-	purgeDeliveries = append(purgeDeliveries, d)
-}
-
-func allPurges() []purgeDelivery {
-	purgeMu.Lock()
-	defer purgeMu.Unlock()
-	out := make([]purgeDelivery, len(purgeDeliveries))
-	copy(out, purgeDeliveries)
-	return out
-}
 
 func putFlow(f *flowState) {
 	flowsMu.Lock()
@@ -318,6 +289,21 @@ func allFlows() []*flowState {
 	return out
 }
 
+// deleteFlowsBySub drops in-memory flow state for an erased subject. The
+// session row is deleted separately.
+func deleteFlowsBySub(sub string) {
+	if sub == "" {
+		return
+	}
+	flowsMu.Lock()
+	defer flowsMu.Unlock()
+	for state, f := range flows {
+		if claimString(f.IDClaims, "sub") == sub {
+			delete(flows, state)
+		}
+	}
+}
+
 func resetFlows() {
 	flowsMu.Lock()
 	flows = map[string]*flowState{}
@@ -325,7 +311,4 @@ func resetFlows() {
 	lastLogoutMu.Lock()
 	lastLogout = nil
 	lastLogoutMu.Unlock()
-	purgeMu.Lock()
-	purgeDeliveries = nil
-	purgeMu.Unlock()
 }

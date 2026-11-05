@@ -32,7 +32,11 @@ func handleAccount(w http.ResponseWriter, r *http.Request) {
 			// The notice is shown once: consume the stale cookie, then the next
 			// visit renders the launch form.
 			clearSessionCookie(w)
-			renderSessionEnded(w, ev)
+			if ev.Event == "erased" {
+				renderAccountErased(w, ev)
+			} else {
+				renderSessionEnded(w, ev)
+			}
 			return
 		}
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -59,8 +63,31 @@ func renderSessionEnded(w http.ResponseWriter, ev *sessionEvent) {
 	if ev.SID != "" {
 		fmt.Fprintf(w, `<dt>sid</dt><dd class="mono">%s</dd>`, html.EscapeString(ev.SID))
 	}
-	fmt.Fprint(w, `</dl><div class="row" style="margin-top:1.2rem"><a class="btn" href="/">Log in again</a></div></div>`)
+	fmt.Fprint(w, `</dl><div class="row" style="margin-top:1.2rem"><a class="btn" href="/">Log in again</a><a class="btn secondary" href="/webhooks">Open webhook log</a></div></div>`)
 	fmt.Fprint(w, `<p class="muted" style="margin-top:1rem">This notice is shown once from the short-lived tombstone and disappears after the one-hour TTL.</p></div>`)
+	pageEnd(w)
+}
+
+func renderAccountErased(w http.ResponseWriter, ev *sessionEvent) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	pageStart(w, "OIDC · account erased", "account")
+
+	fmt.Fprint(w, `<div style="max-width:620px;margin:2rem auto 0"><div class="card">`)
+	fmt.Fprint(w, `<div class="card-head"><h1>Your demo RP data was erased</h1><span class="badge danger">account.erased</span></div>`)
+	fmt.Fprint(w, `<p>TrustNet sent an account erasure webhook. This demo RP deleted its session and stored demo data for the affected subject.</p>`)
+	fmt.Fprint(w, `<dl class="kv" style="margin-top:1rem">`)
+	fmt.Fprint(w, `<dt>Event</dt><dd><code>account.erased</code></dd>`)
+	fmt.Fprintf(w, `<dt>Reason</dt><dd><code>%s</code></dd>`, html.EscapeString(orDash(ev.Reason)))
+	fmt.Fprintf(w, `<dt>Delivery</dt><dd class="mono">%s</dd>`, html.EscapeString(orDash(ev.DeliveryID)))
+	fmt.Fprintf(w, `<dt>Received</dt><dd>%s</dd>`, formatTime(ev.CreatedAt))
+	if ev.Sub != "" {
+		fmt.Fprintf(w, `<dt>sub</dt><dd class="mono">%s</dd>`, html.EscapeString(ev.Sub))
+	}
+	fmt.Fprint(w, `</dl>`)
+	fmt.Fprint(w, `<div class="notice" style="margin-top:1rem" role="status">The erasure was verified against TrustNet's Ed25519 JWKS before anything was deleted.</div>`)
+	fmt.Fprint(w, `<div class="row" style="margin-top:1.2rem"><a class="btn" href="/">Start over</a><a class="btn secondary" href="/webhooks">Open webhook log</a></div></div>`)
+	fmt.Fprint(w, `<p class="muted" style="margin-top:1rem">Unverified deliveries are recorded but never produce this screen or delete data.</p></div>`)
 	pageEnd(w)
 }
 

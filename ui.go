@@ -56,6 +56,7 @@ func pageStart(w io.Writer, title, active string) {
     <nav class="nav" aria-label="Main">
       %s
       %s
+      %s
       <a href="/debug/state">State</a>
       <a href="/logout">Log out</a>
       <button class="btn ghost small" type="button" data-theme-toggle>Dark</button>
@@ -64,7 +65,8 @@ func pageStart(w io.Writer, title, active string) {
 </header>
 <main class="wrap">`, html.EscapeString(title), html.EscapeString(displayLabel()),
 		navLink("/", "Home", active == "home"),
-		navLink("/account", "Dashboard", active == "account"))
+		navLink("/account", "Dashboard", active == "account"),
+		navLink("/webhooks", "Webhooks", active == "webhooks"))
 }
 
 func navLink(href, text string, current bool) string {
