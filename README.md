@@ -28,6 +28,10 @@ $EDITOR .env.staging
 | `TOKEN_AUTH_METHOD` | no | `post` (default) or `basic`; must match the client's `token_endpoint_auth_method`. Portal-registered production RPs use `client_secret_basic`. |
 | `LISTEN` | no | default `:5556` |
 | `LABEL` | no | shown on screen / in `/debug/state` |
+| `DB_PATH` | no | SQLite demo store, default `demo-rp.db` |
+| `SESSION_TTL` | no | demo state lifetime, default `1h` |
+| `COOKIE_SECURE` | no | add `Secure` to the session cookie when served over HTTPS |
+| `PURGE_STRICT` | no | default `true`; invalid purge bodies get `400`, `false` records and returns `200` |
 | `MACHINE_URL` | no | enables the machine-plane `/userinfo` probe when set |
 | `JWKS_URL` | no | enables purge-webhook JWS verification when set |
 | `CA_FILE` | no | add a PEM root (staging's internal CA) |
@@ -62,6 +66,8 @@ Then open <http://localhost:5556/>, pick scopes/claims, and start the flow.
 
 ## Notes
 
+- Sessions, lifecycle events, and purge deliveries live in SQLite at `DB_PATH`
+  and are pruned after `SESSION_TTL`.
 - The live pages embed `_DESIGN/styles.css` and `_DESIGN/design.js` and serve
   them as `/styles.css` and `/design.js`, so the app and the screen catalogue
   share one visual language.

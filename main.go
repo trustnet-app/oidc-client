@@ -14,10 +14,20 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 func main() {
 	loadConfig()
+
+	st, err := openStore(env.DBPath, env.SessionTTL)
+	if err != nil {
+		log.Fatalf("store %s: %v", env.DBPath, err)
+	}
+	dataStore = st
+	defer st.Close()
+	st.startSweeper(time.Minute)
+	log.Printf("store %s (session TTL %s, cookie Secure=%t)", env.DBPath, env.SessionTTL, env.CookieSecure)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/styles.css", handleStyles)

@@ -43,7 +43,7 @@ hour.
 unique, registry links resolve, all `_DESIGN` internal links resolve. No Go code
 changed. Awaiting owner confirmation before Part 2.
 
-### [ ] Part 2 — persistence, config, TTL
+### [x] Part 2 — persistence, config, TTL
 
 - Add `modernc.org/sqlite`.
 - `store.go`: `sessions`, `session_events`, `webhook_deliveries` tables created
@@ -53,6 +53,18 @@ changed. Awaiting owner confirmation before Part 2.
 - Sweeper prunes expired rows and old in-memory flows.
 - Session cookie: random id, SHA-256 stored, `HttpOnly`, `SameSite=Lax`,
   `Secure` when configured.
+
+**Landed 2026-11-05:** `modernc.org/sqlite` v1.34.5 (keeps `go 1.23`).
+`store.go` opens SQLite (WAL, single writer, busy timeout) and migrates the
+three tables plus indexes. `config.go` reads `DB_PATH` (default `demo-rp.db`),
+`SESSION_TTL` (default `1h`), `COOKIE_SECURE`, and `PURGE_STRICT` (default
+true). The sweeper prunes expired sessions, TTL-old events/deliveries, and old
+in-memory flows every minute. Session helpers hash the cookie id with SHA-256
+and set/clear an `HttpOnly`, `SameSite=Lax` cookie with `Secure` when
+configured. Store CRUD, event, and webhook helpers are in place for Parts 3–5;
+no handler is wired to them yet. Verified: `go build`, `go vet`, `go test`,
+runtime migration on a fresh DB, and a throwaway round-trip test for sessions,
+pruning, and cookies. Awaiting owner confirmation before Part 3.
 
 ### [ ] Part 3 — login, dashboard, home redirect
 

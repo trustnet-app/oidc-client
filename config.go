@@ -44,6 +44,13 @@ type config struct {
 
 	Listen string
 
+	// Demo persistence. All demo state lives in SQLite and expires after
+	// SessionTTL. CookieSecure adds the Secure flag (required behind HTTPS).
+	DBPath       string
+	SessionTTL   time.Duration
+	CookieSecure bool
+	PurgeStrict  bool
+
 	// CAFile adds a PEM root (staging's internal CA) on top of the system
 	// roots. TLSInsecure disables verification entirely — loud, dev-only.
 	CAFile      string
@@ -66,11 +73,17 @@ func getenv(k, def string) string {
 }
 
 func getenvBool(k string) bool {
+	return getenvBoolDefault(k, false)
+}
+
+func getenvBoolDefault(k string, def bool) bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv(k))) {
 	case "1", "true", "yes", "on":
 		return true
+	case "0", "false", "no", "off":
+		return false
 	}
-	return false
+	return def
 }
 
 // loadDotEnv reads a KEY=VALUE file into the process environment, without
@@ -121,6 +134,12 @@ func loadConfig() {
 	}
 	loadDotEnv(file)
 
+	ttlText := getenv("SESSION_TTL", "1h")
+	sessionTTL, err := time.ParseDuration(ttlText)
+	if err != nil || sessionTTL <= 0 {
+		log.Fatalf("SESSION_TTL must be a positive duration, got %q", ttlText)
+	}
+
 	env = config{
 		Label:           getenv("LABEL", "oidc client"),
 		WellKnownURL:    getenv("WELL_KNOWN_URL", ""),
@@ -131,6 +150,10 @@ func loadConfig() {
 		MachineURL:      strings.TrimSuffix(getenv("MACHINE_URL", ""), "/"),
 		JWKSURL:         getenv("JWKS_URL", ""),
 		Listen:          getenv("LISTEN", ":5556"),
+		DBPath:          getenv("DB_PATH", "demo-rp.db"),
+		SessionTTL:      sessionTTL,
+		CookieSecure:    getenvBool("COOKIE_SECURE"),
+		PurgeStrict:     getenvBoolDefault("PURGE_STRICT", true),
 		CAFile:          getenv("CA_FILE", ""),
 		TLSInsecure:     getenvBool("TLS_INSECURE"),
 	}
