@@ -3,7 +3,7 @@ id: screen-account-dashboard
 type: screen
 title: Account dashboard
 status: approved
-version: 1.0.1
+version: 1.1.0
 updated: 2026-11-06
 owners: [vladimir]
 route: /account
@@ -27,7 +27,8 @@ signed-in visitor opens `/`.
 ## Layout
 
 - **Header** — “Logged in as {preferred_username}”, demo label, links to
-  `/webhooks` and `/logout`, and a “Sign out” action.
+  `/webhooks` and `/logout`, an **Escalate** action in the signed-in navbar, and
+  a “Sign out” action.
 - **Session card** — session start and expiry, `sub` (PPID), `sid` when present,
   and the age of the session.
 - **Identity card** — preferred username, name, email, and the other decoded ID
@@ -51,6 +52,7 @@ signed-in visitor opens `/`.
 | Probe label | "TrustNet machine-plane userinfo" | no |
 | Probe action | "Test userinfo endpoint" | no |
 | Flow action | "View last flow" | no |
+| Escalate action | "Escalate" | yes |
 | Sign out | "Sign out" | no |
 | No username fallback | "{name}" then "{email}" then "{sub}" | yes |
 
@@ -59,6 +61,7 @@ signed-in visitor opens `/`.
 | Action | Trigger | Result |
 | --- | --- | --- |
 | View last flow | Click “View last flow” | `GET /result?state={state}` → `screen-flow-result` |
+| Escalate | Click “Escalate” in the navbar | `GET /escalate` → `screen-escalation-request` |
 | Test userinfo endpoint | Click the probe button (POST `/rp-userinfo`) | Re-renders this screen with the machine-plane response |
 | Sign out | Click “Sign out” | `GET /logout` clears the local session and redirects to `screen-demo-home` |
 | Open webhook log | Header link | `GET /webhooks` |
@@ -68,6 +71,7 @@ signed-in visitor opens `/`.
 
 - Every action requires a valid session; otherwise the request is rejected with
   `screen-error` (`401`).
+- The **Escalate** navbar action is rendered only for a valid session.
 - The probe requires `MACHINE_URL`; without it the card is hidden.
 - The flow link is shown only when the session has a stored flow state.
 
@@ -76,6 +80,7 @@ signed-in visitor opens `/`.
 | Outcome | Trigger | Next screen / exit |
 | --- | --- | --- |
 | Flow detail | “View last flow” | `screen-flow-result` |
+| Escalation request | “Escalate” | `screen-escalation-request` |
 | Signed out | “Sign out” | `screen-demo-home` |
 | Session ended by TrustNet | Next request after back-channel logout | `screen-session-ended` |
 | Account purged | Next request after purge | `screen-account-erased` |
@@ -100,5 +105,6 @@ signed-in visitor opens `/`.
 
 | Date | Version | Change |
 | --- | --- | --- |
+| 2026-11-06 | 1.1.0 | Add the signed-in **Escalate** navbar action to `screen-escalation-request`. |
 | 2026-11-06 | 1.0.1 | Sign out is local-only: clear the session and return to the home screen instead of redirecting to the issuer. |
 | 2026-11-05 | 1.0.0 | Initial approved spec for the live demo RP. |

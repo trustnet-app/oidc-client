@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo RP — escalation request</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script src="../design.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true"></span> Demo RP</a>
+      <nav class="nav" aria-label="Main">
+        <a href="home.html">Home</a>
+        <a href="account-dashboard.html">Dashboard</a>
+        <a href="escalation-request.html" aria-current="page">Escalate</a>
+        <a href="webhook-log.html">Webhooks</a>
+        <button class="btn ghost small" type="button" data-theme-toggle>Dark</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="page-head">
+      <p class="eyebrow">Consent escalation</p>
+      <h1>Request more claims from TrustNet</h1>
+      <p class="lede">Your current session already shares six claims. Select the
+        additional claims you want TrustNet to review, then continue. TrustNet
+        will show a full consent review before sharing anything new.</p>
+    </section>
+
+    <div class="notice" role="note">
+      <span class="notice-icon" aria-hidden="true">i</span>
+      <span>This sends a new authorization request to TrustNet. The claims
+        already shared with this RP are carried over; only the new claims need
+        review.</span>
+    </div>
+
+    <section class="card" style="margin-top:1rem">
+      <div class="card-head">
+        <h2>Already shared</h2>
+        <span class="badge ok">carried over</span>
+      </div>
+      <p class="muted">These claim names are present in the current session. They
+        are included in the escalation request automatically and cannot be
+        deselected here.</p>
+      <div class="row" style="margin-top:.7rem">
+        <span class="badge">email</span>
+        <span class="badge">email_verified</span>
+        <span class="badge">given_name</span>
+        <span class="badge">family_name</span>
+        <span class="badge">preferred_username</span>
+        <span class="badge">name</span>
+      </div>
+    </section>
+
+    <form method="get" action="flow-result.html">
+      <fieldset class="panel" style="margin-top:1rem">
+        <legend class="sr-only">Request additional claims</legend>
+        <div class="panel-head" aria-hidden="true">
+          <span class="panel-title">Request additional claims</span>
+          <span class="panel-meta">not already shared</span>
+        </div>
+        <p class="hint">Select the new claims you want TrustNet to review.
+          Previously shared claims are carried over automatically.</p>
+        <div class="checks claim-grid">
+          <label class="check tile"><input type="checkbox" name="claim" value="birthdate"> <span>birthdate</span></label>
+          <label class="check tile"><input type="checkbox" name="claim" value="gender"> <span>gender</span></label>
+          <label class="check tile"><input type="checkbox" name="claim" value="locale"> <span>locale</span></label>
+          <label class="check tile"><input type="checkbox" name="claim" value="middle_name"> <span>middle_name</span></label>
+          <label class="check tile"><input type="checkbox" name="claim" value="nickname"> <span>nickname</span></label>
+          <label class="check tile"><input type="checkbox" name="claim" value="over_18"> <span>over_18</span></label>
+          <label class="check tile"><input type="checkbox" name="claim" value="phone_number"> <span>phone_number</span></label>
+          <label class="check tile"><input type="checkbox" name="claim" value="phone_number_verified"> <span>phone_number_verified</span></label>
+          <label class="check tile"><input type="checkbox" name="claim" value="picture"> <span>picture</span></label>
+          <label class="check tile"><input type="checkbox" name="claim" value="profile"> <span>profile</span></label>
+          <label class="check tile"><input type="checkbox" name="claim" value="website"> <span>website</span></label>
+          <label class="check tile"><input type="checkbox" name="claim" value="zoneinfo"> <span>zoneinfo</span></label>
+        </div>
+      </fieldset>
+
+      <div class="row actions">
+        <button class="btn" type="submit">Continue to TrustNet</button>
+        <a class="btn secondary" href="account-dashboard.html">Cancel</a>
+      </div>
+    </form>
+
+    <p class="footer-note">After TrustNet returns, the flow result reports which
+      requested claims were shared and which were not returned.</p>
+  </main>
+</body>
+</html>

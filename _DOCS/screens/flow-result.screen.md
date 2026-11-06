@@ -3,8 +3,8 @@ id: screen-flow-result
 type: screen
 title: Flow result
 status: approved
-version: 1.0.0
-updated: 2026-11-05
+version: 1.1.0
+updated: 2026-11-06
 owners: [vladimir]
 route: /result
 area: demo
@@ -21,13 +21,19 @@ related:
 
 The per-flow inspector surface: the decoded ID token, the OIDC `/userinfo`
 response, the token metadata, and the machine-plane probe. It is reached from
-the dashboard and from the callback's post/redirect/get landing.
+the dashboard and from the callback's post/redirect/get landing. For an
+escalation flow it is also the return surface: an **Escalation outcome** card
+compares the requested claim names with the claims TrustNet actually returned.
 
 ## Layout
 
 - **Header** — “Flow result”, demo label, back to the dashboard.
 - **Outcome card** — success, denial (`error`, `error_description`), or token
   exchange failure.
+- **Escalation outcome card** — only for an escalation flow: a table of every
+  requested claim with its source (“Already shared” or “New request”) and
+  whether TrustNet returned it (“Shared” or “Not returned”), plus a
+  “{returned} of {requested} requested claims returned” summary.
 - **Subject card** — `sub` (PPID) prominently.
 - **ID token claims card** — decoded claims as pretty JSON.
 - **UserInfo card** — the `/userinfo` response or error.
@@ -47,6 +53,10 @@ the dashboard and from the callback's post/redirect/get landing.
 | UserInfo label | "OIDC /userinfo" | no |
 | Token label | "Token response (values redacted)" | no |
 | Error label | "Error" | no |
+| Escalation outcome label | "Escalation outcome" | no |
+| Escalation summary | "{returned} of {requested} requested claims returned" | no |
+| Escalation statuses | "Shared" / "Not returned" | no |
+| Escalation sources | "Already shared" / "New request" | no |
 | New flow action | "New flow" | no |
 
 ## Actions
@@ -60,6 +70,13 @@ the dashboard and from the callback's post/redirect/get landing.
 ## Validation
 
 - Requires a valid session and a known `state`; otherwise `screen-error`.
+- The escalation outcome card appears only when the flow recorded an escalation
+  request. It compares the requested claim names with the claims present in the
+  ID token and OIDC `/userinfo`; protocol claims are ignored. The card shows
+  names and statuses only, never claim values.
+- A requested claim absent from both the ID token and `/userinfo` is “Not
+  returned”. OIDC does not tell the RP whether the user declined it or TrustNet
+  had no value, so the demo does not claim to know why.
 - Token values are never rendered in HTML; only `/debug/state` exposes them.
 - The probe requires an access token and `MACHINE_URL`.
 
@@ -67,6 +84,7 @@ the dashboard and from the callback's post/redirect/get landing.
 
 | Outcome | Trigger | Next screen / exit |
 | --- | --- | --- |
+| Escalation return | Callback completes an escalation flow | `GET /result?state={state}` → `screen-flow-result` |
 | New flow | “New flow” | `screen-demo-home` |
 | Dashboard | Header link | `screen-account-dashboard` |
 | Error | Unknown state or missing session | `screen-error` |
@@ -74,9 +92,17 @@ the dashboard and from the callback's post/redirect/get landing.
 ## Edge cases
 
 - **Denied authorization** — the error card renders `error` and
-  `error_description`; no token card.
+  `error_description`; no token card and no escalation outcome card.
 - **Token exchange failure** — the error card renders the issuer response.
-- **No userinfo endpoint** — the UserInfo card is hidden.
+- **No userinfo endpoint** — the UserInfo card is hidden; the escalation outcome
+  falls back to the ID token claims only.
+- **Every requested claim returned or none returned** — the summary states the
+  count and the table renders every requested claim.
+- **A previously shared claim is not returned** — it is listed as “Not returned”
+  even though it was not newly selected.
+- **Unexpected returned claim** — a claim TrustNet returns that the RP did not
+  request is not added to the escalation table; it remains visible in the ID
+  token and UserInfo cards.
 
 ## Open questions
 
@@ -86,4 +112,5 @@ the dashboard and from the callback's post/redirect/get landing.
 
 | Date | Version | Change |
 | --- | --- | --- |
+| 2026-11-06 | 1.1.0 | Add the escalation outcome card and the escalation callback return path. |
 | 2026-11-05 | 1.0.0 | Initial approved spec for the live demo RP. |

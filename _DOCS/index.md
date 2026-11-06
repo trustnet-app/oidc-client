@@ -7,6 +7,7 @@ row in the same change that adds a screen doc.
 | --- | --- | --- | --- | --- |
 | `screen-demo-home` | Demo RP home / launch | `/` | `approved` | [screens/home.screen.md](screens/home.screen.md) |
 | `screen-account-dashboard` | Account dashboard | `/account` | `approved` | [screens/account-dashboard.screen.md](screens/account-dashboard.screen.md) |
+| `screen-escalation-request` | Escalation request | `/escalate` | `review` | [screens/escalation-request.screen.md](screens/escalation-request.screen.md) |
 | `screen-flow-result` | Flow result | `/result` | `approved` | [screens/flow-result.screen.md](screens/flow-result.screen.md) |
 | `screen-auth-preview` | Authorization request preview | `/start?preview=1` | `approved` | [screens/auth-preview.screen.md](screens/auth-preview.screen.md) |
 | `screen-session-ended` | Session ended by TrustNet | `/account` (stale cookie) | `approved` | [screens/session-ended.screen.md](screens/session-ended.screen.md) |

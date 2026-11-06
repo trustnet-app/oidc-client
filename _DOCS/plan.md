@@ -3,6 +3,68 @@
 Status: deployed 2026-11-06. Public health check passes; interactive OIDC
 login/logout/purge validation remains.
 
+## Escalation request (new feature)
+
+Status: **docs/screens updated 2026-11-06; no application code written.** This
+part is awaiting owner approval before implementation.
+
+### Intent
+
+A signed-in user gets an **Escalate** action in the navbar. It opens an
+escalation-request screen where the user selects claims not already present in
+the current session. The RP sends a new authorization request containing the
+already-shared claims plus the new selection and `prompt=consent`, so TrustNet
+performs a full review of the grown claim set. When the browser returns, the
+flow result shows which requested claims TrustNet returned and which it did not.
+
+### Design decisions in the docs
+
+- New screen `screen-escalation-request` at `/escalate` (status: `review`).
+- Already-shared claims are carried over automatically and are not removable on
+  this screen; escalation is additive.
+- At least one new claim is required; otherwise `screen-error` (`400`).
+- The request sends `scope=openid` and `prompt=consent`. A grown claim set
+  already forces full review in TrustNet; `prompt` keeps the request standard.
+- Escalation flows return to `screen-flow-result`. Its new **Escalation outcome**
+  card lists every requested claim with source (`Already shared` / `New request`)
+  and outcome (`Shared` / `Not returned`).
+- “Not returned” is absence from both the ID token and `/userinfo`. OIDC does not
+  expose whether the user declined the claim or TrustNet had no value, so the
+  demo does not guess.
+
+### Files updated (docs only)
+
+- `_DOCS/screens/escalation-request.screen.md` (new, `review`)
+- `_DOCS/index.md`, `_DOCS/screens/account-dashboard.screen.md`,
+  `_DOCS/screens/flow-result.screen.md`
+- `_DESIGN/screens/escalation-request.html` (new),
+  `_DESIGN/screens/account-dashboard.html`, `_DESIGN/screens/flow-result.html`,
+  `_DESIGN/index.html`, `_DESIGN/README.md`
+
+### Implementation outline (not started)
+
+1. Make the shared navbar session-aware and show **Escalate** only for a valid
+   session; render it on the dashboard and other signed-in screens.
+2. Add `GET /escalate`: read the session, list requestable claims not present in
+   the session, render the form, and reject a missing session with `401`.
+3. Add escalation mode to `GET /start`: validate at least one new claim, combine
+   the current claim names with the selection, send `scope=openid` and
+   `prompt=consent`, and record the requested claim names on the flow.
+4. Redirect an escalation callback to `/result?state=…` instead of `/account`;
+   keep the normal flow unchanged.
+5. Add the escalation outcome card to `renderResult`, comparing requested names
+   with the ID token and `/userinfo`; ignore protocol claims and render names and
+   statuses only.
+6. Update `README.md` routes and add route/unit tests (session requirement, claim
+   combination, outcome classification, denial path).
+
+### Open questions for the owner
+
+- [ ] Is additive-only escalation correct, or should the form allow removing an
+      already-shared claim?
+- [ ] Is “Not returned” an acceptable label, given the RP cannot distinguish a
+      user decline from a missing value?
+
 ## Target
 
 - **Public hostname:** `test-rp.smileservices.dev`
@@ -134,6 +196,8 @@ No `CA_FILE`: production endpoints use publicly trusted TLS.
 
 ## Change log
 
+- 2026-11-06: Documented the escalation-request screen and the escalation
+  outcome on the flow result. No code changes yet; awaiting owner approval.
 - 2026-11-06: RP-initiated `/logout` is now local-only. It clears the session
   cookie and store row, records the `rp_initiated` event, and redirects to `/`
   instead of TrustNet's `end_session_endpoint`. Deploy a rebuilt binary to pick
