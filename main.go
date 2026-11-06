@@ -29,6 +29,16 @@ func main() {
 	st.startSweeper(time.Minute)
 	log.Printf("store %s (session TTL %s, cookie Secure=%t)", env.DBPath, env.SessionTTL, env.CookieSecure)
 
+	mux := newMux()
+
+	log.Printf("oidc client %q listening on %s (client_id=%s, redirect=%s)",
+		env.Label, env.Listen, env.ClientID, env.Redirect)
+	log.Fatal(http.ListenAndServe(env.Listen, mux))
+}
+
+// newMux wires every route. Tests use it directly to assert aliases and
+// redirects without starting a listener.
+func newMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/styles.css", handleStyles)
 	mux.HandleFunc("/design.js", handleDesignScript)
@@ -57,10 +67,7 @@ func main() {
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok"))
 	})
-
-	log.Printf("oidc client %q listening on %s (client_id=%s, redirect=%s)",
-		env.Label, env.Listen, env.ClientID, env.Redirect)
-	log.Fatal(http.ListenAndServe(env.Listen, mux))
+	return mux
 }
 
 // redirectPath returns the path of REDIRECT_URI, or "" when it is "/" (already

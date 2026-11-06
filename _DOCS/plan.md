@@ -137,13 +137,24 @@ plus a runtime test with a local Ed25519 JWKS covering erasure, revocation,
 invalid signature/payload, strict/non-strict responses, tombstone rendering,
 the webhook log, and reset. Awaiting owner confirmation before Part 6.
 
-### [ ] Part 6 — tests, docs, deployment
+### [x] Part 6 — tests, docs, deployment
 
 - Unit tests for the store/TTL, logout-token validation, purge JWS, route
   aliases, redirect behaviour, and tombstones.
 - `go build`, `go vet`, `go test ./...`.
 - README, `.env.*.example`, deployment notes (HTTPS, public URLs, persistent DB,
   single instance).
+
+**Landed 2026-11-05:** `main.go` now exposes `newMux()` so route aliases and
+redirects are testable. Added tests for store round-trips, TTL pruning, session
+deletion fallback, tombstones, cookies, logout-token validation, back-channel
+logout, purge JWS verification (valid, bad signature, bad payload,
+strict/non-strict), JWKS caching, the webhook log, route aliases, redirects,
+session-scoped results, protected actions, static assets, health, and reset
+redirects. README gained Tests and Deployment sections; all `.env.*.example`
+files now show the persistence, TTL, cookie, and purge settings, with production
+defaults for HTTPS. Verified: `go build`, `go vet`, and `go test -race ./...`
+all pass. This completes the approved plan.
 
 ## Deliberately out of scope
 

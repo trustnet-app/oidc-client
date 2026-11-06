@@ -6,7 +6,8 @@ a `.env` file. Endpoints come from the environment's OIDC discovery document, so
 one binary targets any deployment.
 
 Derived from TrustNet's `_DEV/mock-rp` fixture. Like it, this is a **test tool**:
-it decodes JWTs without verifying signatures. It is an inspector, not a
+ID tokens and logout tokens are decoded without signature verification, while
+purge webhooks are verified against the JWKS. It is an inspector, not a
 validator, and it never self-registers a client — registration stays in each
 environment's seed path.
 
@@ -48,7 +49,8 @@ environment variables always override the file.
 ./run.sh               # loads .env
 ```
 
-Then open <http://localhost:5556/>, pick scopes/claims, and start the flow.
+Then open <http://localhost:5556/>, pick scopes/claims, and start the flow. A
+successful callback creates the demo session and lands on `/account`.
 
 ## Routes
 
@@ -66,10 +68,42 @@ Then open <http://localhost:5556/>, pick scopes/claims, and start the flow.
 | `/webhooks` | public purge-delivery and back-channel logout log |
 | `/debug/state`, `/debug/purge`, `/debug/reset` | machine-readable state |
 
+## Tests
+
+```bash
+go test ./...
+go vet ./...
+go build ./...
+```
+
+The suite covers the SQLite store and TTL pruning, session cookies, logout-token
+validation, purge JWS verification and strict/non-strict responses, route
+aliases, redirects, session scoping, and tombstones.
+
+## Deployment
+
+- Serve behind HTTPS and set `COOKIE_SECURE=true`.
+- Register the public callback (`REDIRECT_URI`), back-channel logout, and purge
+  URLs with TrustNet. Logout and purge must be reachable server-to-server.
+- Put `DB_PATH` on a persistent volume. SQLite is single-instance: run exactly
+  one process per database and do not scale horizontally.
+- Keep `SESSION_TTL` at `1h` for the demo; the sweeper prunes sessions, events,
+  and deliveries on that TTL.
+- Set `JWKS_URL` so purge webhooks can be verified. Use `PURGE_STRICT=false` only
+  when invalid deliveries should be recorded instead of rejected with `400`.
+- `MACHINE_URL` enables the machine-plane `/userinfo` probe on the dashboard and
+  result page.
+
 ## Notes
 
 - Sessions, lifecycle events, and purge deliveries live in SQLite at `DB_PATH`
   and are pruned after `SESSION_TTL`.
+- Session cookies carry only a random id; SQLite stores its SHA-256 hash.
+- Logout tokens are claim-validated but not signature-verified (inspector).
+  Purge webhooks are signature-verified against a cached JWKS (5-minute TTL,
+  refreshed when an unknown `kid` appears).
+- `/webhooks` is public and shows only PPIDs and delivery metadata — never
+  tokens, cookies, or claim values.
 - The live pages embed `_DESIGN/styles.css` and `_DESIGN/design.js` and serve
   them as `/styles.css` and `/design.js`, so the app and the screen catalogue
   share one visual language.
