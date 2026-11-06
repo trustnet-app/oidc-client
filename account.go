@@ -91,8 +91,7 @@ func renderAccountErased(w http.ResponseWriter, ev *sessionEvent) {
 	pageEnd(w)
 }
 
-// GET /logout — clear the local session, then send the browser to the issuer's
-// end_session_endpoint. The id_token_hint comes from the session row.
+// GET /logout — clear the local session and return to the app's home screen.
 func handleLogout(w http.ResponseWriter, r *http.Request) {
 	sess, err := currentSession(r)
 	if err != nil {
@@ -100,9 +99,7 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var idt string
 	if sess != nil {
-		idt = sess.IDToken
 		if err := dataStore.deleteSession(sess.IDHash); err != nil {
 			log.Printf("logout: delete session: %v", err)
 		}
@@ -118,17 +115,7 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	clearSessionCookie(w)
-
-	if disc.EndSessionEndpoint == "" {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
-	}
-	loc := disc.EndSessionEndpoint + "?post_logout_redirect_uri=" +
-		url.QueryEscape(strings.TrimSuffix(env.Redirect, "/callback")+"/")
-	if idt != "" {
-		loc += "&id_token_hint=" + url.QueryEscape(idt)
-	}
-	http.Redirect(w, r, loc, http.StatusFound)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 // startSession persists the successful flow and sets the demo cookie. Any
@@ -368,7 +355,7 @@ func renderAccount(w http.ResponseWriter, sess *session, probe *machineProbe) {
 	}
 	fmt.Fprint(w, `</section></div>`)
 
-	fmt.Fprint(w, `<p class="footer-note">Sign out clears the demo session locally, then redirects to TrustNet's <code>end_session_endpoint</code>.</p>`)
+	fmt.Fprint(w, `<p class="footer-note">Sign out clears the demo session locally and returns you to the home screen.</p>`)
 	pageEnd(w)
 }
 

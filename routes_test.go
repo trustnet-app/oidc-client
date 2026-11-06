@@ -35,11 +35,10 @@ func TestHomeAndAccountRedirects(t *testing.T) {
 
 func TestLogoutClearsSessionAndRedirects(t *testing.T) {
 	s := setupTest(t)
-	disc.EndSessionEndpoint = "https://issuer.example/oauth2/sessions/logout"
 	x := testSession(t, s, "cookie-1", "ppid_1", "sid_1")
 
 	rr := serve(newMux(), "GET", "/logout", "", testCookie("cookie-1"))
-	if rr.Code != http.StatusFound || !strings.HasPrefix(rr.Header().Get("Location"), disc.EndSessionEndpoint) {
+	if rr.Code != http.StatusSeeOther || rr.Header().Get("Location") != "/" {
 		t.Fatalf("logout: status=%d location=%q", rr.Code, rr.Header().Get("Location"))
 	}
 	if got, _ := s.sessionByID(x.IDHash); got != nil {

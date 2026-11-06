@@ -1,164 +1,140 @@
-# Demo RP — approved plan
+# Deployment plan — test RP on hpmini against production
 
-Status legend: `[ ]` planned · `[~]` in progress / awaiting confirmation ·
-`[x]` done · `[!]` blocked.
+Status: deployed 2026-11-06. Public health check passes; interactive OIDC
+login/logout/purge validation remains.
 
-Owner-approved 2026-11-05. One part at a time; stop for confirmation after each.
+## Target
 
-## Goal
+- **Public hostname:** `test-rp.smileservices.dev`
+- **Traffic path:** DNS → DigitalOcean droplet `159.89.12.141` → nginx →
+  WireGuard `10.10.0.2` → hpmini (`bubu`, LAN `192.168.0.144`)
+- **App port:** `37841` (verified free; `37840` is used by
+  `docs.smileservices.dev`)
+- **Environment:** TrustNet production (`id.trustnet.app`, `rp.trustnet.app`)
+- **User:** dedicated system user `trustnet_test-rp`
+- **App directory:** `/home/trustnet_test-rp/oidc-client/`
+- **Exposure:** app listens only on `10.10.0.2:37841`; HTTPS terminates at the
+  droplet. No new public port on hpmini; `ufw` is inactive there.
 
-Turn the inspector into a small live demo relying party: OIDC login creates a
-server-side session, `/` opens the dashboard when logged in, TrustNet
-back-channel logout ends that session, and purge webhooks visibly demonstrate
-revocation and erasure. All demo state lives in SQLite and expires after one
-hour.
+## Configuration
 
-## Owner decisions
+Use the existing `prod.env` credentials. The binary loads `.env` by default, so
+deploy a copy of `prod.env` to the target as `.env` (mode `0600`). Do not commit
+the deployed file or `prod.env`; both contain production credentials.
 
-1. **Purge visibility:** A + B — a stale-cookie erased/ended screen *and* a
-   `/webhooks` delivery log.
-2. **Token persistence:** store `id_token` / `access_token` in the session row
-   for the one-hour lifetime (needed for `id_token_hint` and the machine-plane
-   probe after a restart).
-3. **Purge response semantics:** `200` for verified deliveries; `400` for
-   malformed/invalid bodies unless `PURGE_STRICT=false`, in which case the
-   failure is recorded and `200` is returned.
-4. **Deployment:** public HTTPS URLs will be registered for the callback,
-   back-channel logout, and purge webhook.
+The deployed `.env` must differ from `prod.env` in these values:
 
-## Parts
+```dotenv
+# prod.env currently has LISTEN=:80, which binds every interface and conflicts
+# with hpmini's existing port 80.
+LISTEN=10.10.0.2:37841
 
-### [x] Part 1 — specification and visual catalogue
+DB_PATH=/home/trustnet_test-rp/oidc-client/demo-rp.db
+COOKIE_SECURE=true
+PURGE_STRICT=true
+```
 
-- `_DOCS/AGENTS.md`, `_DOCS/index.md`, `_DOCS/plan.md`.
-- `_DOCS/screens/` — eight approved screen specs.
-- `_DESIGN/` — static HTML/CSS/JS catalogue mirroring every screen.
-- **Exit:** every screen doc has a matching rendering; internal links resolve.
+Keep the rest from `prod.env`:
 
-**Landed 2026-11-05:** eight specs (`home`, `account-dashboard`,
-`flow-result`, `auth-preview`, `session-ended`, `account-erased`,
-`webhook-log`, `error`) registered in `_DOCS/index.md`, plus the static
-`_DESIGN` catalogue (catalogue hub, shared `styles.css` with light/dark tokens,
-`design.js`, and eight renderings). Verified: frontmatter/sections present, IDs
-unique, registry links resolve, all `_DESIGN` internal links resolve. No Go code
-changed. Awaiting owner confirmation before Part 2.
+```dotenv
+WELL_KNOWN_URL=https://id.trustnet.app/.well-known/openid-configuration
+CLIENT_ID=<from prod.env>
+CLIENT_SECRET=<from prod.env>
+REDIRECT_URI=https://test-rp.smileservices.dev/redirect
+TOKEN_AUTH_METHOD=basic
+LABEL=Test Relying Party
+SESSION_TTL=1h
+MACHINE_URL=https://rp.trustnet.app
+JWKS_URL=https://rp.trustnet.app/api/v1/webhook/jwks
+```
 
-### [x] Part 2 — persistence, config, TTL
+No `CA_FILE`: production endpoints use publicly trusted TLS.
 
-- Add `modernc.org/sqlite`.
-- `store.go`: `sessions`, `session_events`, `webhook_deliveries` tables created
-  on startup.
-- Config: `DB_PATH`, `SESSION_TTL` (default `1h`), `COOKIE_SECURE`,
-  `PURGE_STRICT`.
-- Sweeper prunes expired rows and old in-memory flows.
-- Session cookie: random id, SHA-256 stored, `HttpOnly`, `SameSite=Lax`,
-  `Secure` when configured.
+## Prerequisites
 
-**Landed 2026-11-05:** `modernc.org/sqlite` v1.34.5 (keeps `go 1.23`).
-`store.go` opens SQLite (WAL, single writer, busy timeout) and migrates the
-three tables plus indexes. `config.go` reads `DB_PATH` (default `demo-rp.db`),
-`SESSION_TTL` (default `1h`), `COOKIE_SECURE`, and `PURGE_STRICT` (default
-true). The sweeper prunes expired sessions, TTL-old events/deliveries, and old
-in-memory flows every minute. Session helpers hash the cookie id with SHA-256
-and set/clear an `HttpOnly`, `SameSite=Lax` cookie with `Secure` when
-configured. Store CRUD, event, and webhook helpers are in place for Parts 3–5;
-no handler is wired to them yet. Verified: `go build`, `go vet`, `go test`,
-runtime migration on a fresh DB, and a throwaway round-trip test for sessions,
-pruning, and cookies. Awaiting owner confirmation before Part 3.
+1. A TrustNet **production** client with `client_secret_basic` and these public
+   URLs registered:
+   - redirect: `https://test-rp.smileservices.dev/redirect`
+   - back-channel logout: `https://test-rp.smileservices.dev/backchannel`
+   - purge webhook: `https://test-rp.smileservices.dev/purge`
+2. `CLIENT_ID` / `CLIENT_SECRET` in `prod.env` are valid for that client.
+3. `test-rp.smileservices.dev` already resolves to `159.89.12.141`.
+4. WireGuard routes `10.10.0.1` ↔ `10.10.0.2`; verify from the droplet.
 
-### [x] Part 3 — login, dashboard, home redirect
+## Steps
 
-- `/callback` creates the session and redirects to `/account`.
-- `/` redirects to `/account` when a session is valid.
-- `/account` renders “Logged in as {preferred_username}” plus claim, userinfo,
-  probe, and logout cards.
-- `/result` and `/rp-userinfo` become session-scoped.
-- `/logout` clears the local session then redirects to `end_session_endpoint`.
+1. **Build and verify.**
+   - `go test ./...`, `go vet ./...`
+   - `CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o dist/oidc_oauth2_client .`
+   - Assets are embedded; the binary is self-contained.
+2. **Create the runtime identity and directory on hpmini.**
+   - `useradd --system --create-home --home-dir /home/trustnet_test-rp --shell /usr/sbin/nologin trustnet_test-rp`
+   - Create `/home/trustnet_test-rp/oidc-client` (`0750`, owned by the user).
+3. **Install files.**
+   - Copy the binary (`0750`).
+   - Copy `prod.env` to the app directory as `.env` (`0600`), applying the
+     `LISTEN`, `DB_PATH`, `COOKIE_SECURE`, and `PURGE_STRICT` changes above.
+   - Leave `ENV` unset so the binary loads `.env`.
+4. **Install the systemd unit.**
+   - `trustnet-test-rp.service`: `User`/`Group=trustnet_test-rp`,
+     `WorkingDirectory=/home/trustnet_test-rp/oidc-client`, no `ENV` override,
+     `ExecStart=…/oidc_oauth2_client`, `Restart=on-failure`.
+   - Harden with `NoNewPrivileges=true`, `PrivateTmp=true`,
+     `ProtectSystem=strict`, and write access limited to the app directory.
+   - Enable, start, and inspect `journalctl -u trustnet-test-rp`.
+5. **Verify locally on hpmini.**
+   - `curl -fsS http://10.10.0.2:37841/healthz` returns `ok`.
+   - Logs show the expected listen address; SQLite files appear under the app
+     directory.
+6. **Add the droplet reverse proxy.**
+   - Create `/etc/nginx/sites-available/test-rp.smileservices.dev.conf` with
+     `proxy_pass http://10.10.0.2:37841;` and `Host`, `X-Real-IP`,
+     `X-Forwarded-For`, `X-Forwarded-Proto` headers.
+   - Enable it, run `nginx -t`, reload nginx.
+   - Issue TLS with `certbot --nginx -d test-rp.smileservices.dev`.
+   - Verify `https://test-rp.smileservices.dev/healthz` from outside the LAN.
+7. **End-to-end check against production.**
+   - Login, `/redirect` callback, dashboard, and result pages over HTTPS.
+   - RP-initiated logout and a TrustNet back-channel logout.
+   - A production purge delivery visible at `/webhooks` and `/debug/purge`.
+   - Restart the service and confirm sessions are read from SQLite.
 
-**Landed 2026-11-05:** successful callbacks now create a hashed-id SQLite
-session, set the `demo_rp_session` cookie, record a `logged_in` event, and
-redirect to `/account`. `/` redirects signed-in visitors to the dashboard and
-unknown paths now 404. `/account` renders the session, decoded-ID-token
-identity, OIDC `/userinfo`, machine-plane probe, last-flow link, and the latest
-logout/revoke/erase event for the session (none yet). `/result` requires a
-session unless the flow carries an error (denial/inspection), and `/rp-userinfo`
-uses the session's access token and re-renders either the dashboard or the
-flow. `/logout` deletes the session, records `logged_out`/`rp_initiated`, clears
-the cookie, and redirects to `end_session_endpoint` with the session's
-`id_token_hint`. `/debug/reset` also clears the SQLite tables. Verified:
-`go build`, `go vet`, `go test`, plus a runtime smoke test for home redirect,
-dashboard render, session-scoped result (401 without a session), probe 401,
-logout redirect, session deletion, and the `logged_out` event. Awaiting owner
-confirmation before Part 4.
+## Landed (2026-11-06)
 
-### [x] Part 4 — back-channel logout
+- Created system user `trustnet_test-rp` and `/home/trustnet_test-rp/oidc-client`.
+- Installed the static binary and deployed `prod.env` as `.env` (`0600`) with
+  `LISTEN=10.10.0.2:37841`, an absolute `DB_PATH`, `COOKIE_SECURE=true`, and
+  `PURGE_STRICT=true`.
+- Installed and enabled `trustnet-test-rp.service`; it is active and loads
+  production discovery from `https://id.trustnet.app`.
+- Created `/etc/nginx/sites-available/test-rp.smileservices.dev.conf` on the
+  droplet, proxying to `http://10.10.0.2:37841`.
+- Issued a Let's Encrypt certificate for `test-rp.smileservices.dev` (expires
+  2027-02-04) and enabled the HTTP→HTTPS redirect.
+- Verified `https://test-rp.smileservices.dev/healthz` returns `ok` and the
+  HTTP endpoint redirects to HTTPS.
+- Remaining: an interactive production login, back-channel logout, and purge
+  delivery to confirm the registered client URLs and credentials end to end.
 
-- Serve `/backchannel` and `/backchannel-logout`.
-- Validate `logout_token` claims (`iss`, `aud`, `iat`, `events`, `sub`/`sid`,
-  no `nonce`); `400` on invalid.
-- Delete sessions by `sid`, then `sub`; write a `logged_out` tombstone; `200`.
+## Rollback
 
-**Landed 2026-11-05:** both routes share one POST handler. The decoded token is
-validated for `iss`, `aud` (string or array), a 5-minute `iat` window, the
-back-channel logout event, absence of `nonce`, and presence of `sid` or `sub`;
-invalid tokens return `400`. Sessions are deleted by `sid` in a transaction,
-falling back to `sub` when no `sid` matches. One `logged_out` tombstone is
-written per deleted session hash (and a summary event when none matched), so a
-stale browser cookie resolves to the new session-ended screen; that screen is
-shown once, clears the cookie, and the next visit renders the launch form.
-`/debug/state` still records the last valid logout token. Verified:
-`go build`, `go vet`, `go test`, plus a runtime smoke test for a valid logout,
-session deletion, tombstone rendering, stale-cookie redirect, and 400s for bad
-`iss`, `nonce`, missing `events`, and missing tokens. Awaiting owner
-confirmation before Part 5.
+- Stop and disable `trustnet-test-rp`.
+- Remove the nginx site and Certbot certificate for
+  `test-rp.smileservices.dev`; reload nginx.
+- Remove the user and `/home/trustnet_test-rp/oidc-client`.
+- DNS and WireGuard need no change.
 
-### [x] Part 5 — purge webhooks
+## Notes
 
-- Validate the Ed25519 JWS (cached JWKS) and payload
-  (`event`, `client_id`, `subs`, `reason`, `delivery_id`).
-- `access.revoked` and `account.erased` delete matching sessions and write
-  `revoked` / `erased` tombstones.
-- Record every delivery; expose `/webhooks` and `/debug/purge`.
-- Stale-cookie visits render `screen-session-ended` or `screen-account-erased`.
+- SQLite is single-instance; never run a second copy against the same DB.
+- The app stays HTTP on the WireGuard interface; only nginx exposes TLS.
+- If discovery fails, check the production client credentials and DNS/TLS to
+  `id.trustnet.app`.
+- No application code changes are planned.
 
-**Landed 2026-11-05:** `/purge` verifies the compact Ed25519 JWS against a
-5-minute JWKS cache (refreshing on an unknown `kid`, falling back to stale keys
-when the fetch fails), then validates `event`, `client_id`, `subs`, `reason`,
-and `delivery_id`. Verified `access.revoked` / `account.erased` deliveries
-delete matching sessions, write `revoked` / `erased` tombstones per session
-hash, and erase in-memory flows for erasures. Every delivery is stored in
-SQLite; `PURGE_STRICT=true` (default) returns `400` for invalid/unverified
-bodies, while `false` records and returns `200`. `/debug/purge` reads the store,
-and the new public `/webhooks` page lists purge deliveries and back-channel
-logout events, with Refresh, Reset (`POST /debug/reset?next=/webhooks`), and
-Open JSON actions. Stale cookies now render the session-ended or account-erased
-screen once and consume the cookie. Verified: `go build`, `go vet`, `go test`,
-plus a runtime test with a local Ed25519 JWKS covering erasure, revocation,
-invalid signature/payload, strict/non-strict responses, tombstone rendering,
-the webhook log, and reset. Awaiting owner confirmation before Part 6.
+## Change log
 
-### [x] Part 6 — tests, docs, deployment
-
-- Unit tests for the store/TTL, logout-token validation, purge JWS, route
-  aliases, redirect behaviour, and tombstones.
-- `go build`, `go vet`, `go test ./...`.
-- README, `.env.*.example`, deployment notes (HTTPS, public URLs, persistent DB,
-  single instance).
-
-**Landed 2026-11-05:** `main.go` now exposes `newMux()` so route aliases and
-redirects are testable. Added tests for store round-trips, TTL pruning, session
-deletion fallback, tombstones, cookies, logout-token validation, back-channel
-logout, purge JWS verification (valid, bad signature, bad payload,
-strict/non-strict), JWKS caching, the webhook log, route aliases, redirects,
-session-scoped results, protected actions, static assets, health, and reset
-redirects. README gained Tests and Deployment sections; all `.env.*.example`
-files now show the persistence, TTL, cookie, and purge settings, with production
-defaults for HTTPS. Verified: `go build`, `go vet`, and `go test -race ./...`
-all pass. This completes the approved plan.
-
-## Deliberately out of scope
-
-- Multiple users, passwords, or local accounts beyond the OP login.
-- Refresh tokens and token rotation.
-- Horizontal scaling (SQLite is single-instance).
-- Signature verification of the logout token (this remains an inspector).
+- 2026-11-06: RP-initiated `/logout` is now local-only. It clears the session
+  cookie and store row, records the `rp_initiated` event, and redirects to `/`
+  instead of TrustNet's `end_session_endpoint`. Deploy a rebuilt binary to pick
+  this up.
