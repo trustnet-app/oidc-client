@@ -243,16 +243,22 @@ func pkceChallenge(verifier string) string {
 // --- flow state (in-memory, keyed by state) ----------------------------------
 
 type flowState struct {
-	State       string         `json:"state"`
-	Nonce       string         `json:"nonce"`
-	Verifier    string         `json:"code_verifier"`
-	ClaimsParam string         `json:"claims_param,omitempty"`
-	AuthURL     string         `json:"auth_url"`
-	Code        string         `json:"code,omitempty"`
-	TokenResp   map[string]any `json:"token_response,omitempty"`
-	IDClaims    map[string]any `json:"id_token_claims,omitempty"`
-	UserInfo    map[string]any `json:"userinfo,omitempty"`
-	Error       string         `json:"error,omitempty"`
+	State       string `json:"state"`
+	Nonce       string `json:"nonce"`
+	Verifier    string `json:"code_verifier"`
+	ClaimsParam string `json:"claims_param,omitempty"`
+	// Escalation marks a flow started from /escalate. PriorClaims is what the
+	// session already held; RequestedClaims is the union sent to TrustNet.
+	Escalation      bool           `json:"escalation,omitempty"`
+	PriorSub        string         `json:"prior_sub,omitempty"`
+	PriorClaims     []string       `json:"prior_claims,omitempty"`
+	RequestedClaims []string       `json:"requested_claims,omitempty"`
+	AuthURL         string         `json:"auth_url"`
+	Code            string         `json:"code,omitempty"`
+	TokenResp       map[string]any `json:"token_response,omitempty"`
+	IDClaims        map[string]any `json:"id_token_claims,omitempty"`
+	UserInfo        map[string]any `json:"userinfo,omitempty"`
+	Error           string         `json:"error,omitempty"`
 	// MachineProbe is the machine-plane /api/rp/v1/userinfo read, distinct from
 	// UserInfo, which is the OIDC /userinfo.
 	MachineProbe *machineProbe `json:"machine_probe,omitempty"`

@@ -3,7 +3,7 @@ id: screen-flow-result
 type: screen
 title: Flow result
 status: approved
-version: 1.1.0
+version: 1.1.1
 updated: 2026-11-06
 owners: [vladimir]
 route: /result
@@ -57,6 +57,7 @@ compares the requested claim names with the claims TrustNet actually returned.
 | Escalation summary | "{returned} of {requested} requested claims returned" | no |
 | Escalation statuses | "Shared" / "Not returned" | no |
 | Escalation sources | "Already shared" / "New request" | no |
+| Escalation account mismatch | "The authorization returned a different account. Use the same account as the current session." | yes |
 | New flow action | "New flow" | no |
 
 ## Actions
@@ -77,6 +78,9 @@ compares the requested claim names with the claims TrustNet actually returned.
 - A requested claim absent from both the ID token and `/userinfo` is “Not
   returned”. OIDC does not tell the RP whether the user declined it or TrustNet
   had no value, so the demo does not claim to know why.
+- For an escalation, a returned `sub` that differs from the session that started
+  it is rejected. The error card renders “Use the same account as the current
+  session.”, the returned claims are discarded, and no outcome card is shown.
 - Token values are never rendered in HTML; only `/debug/state` exposes them.
 - The probe requires an access token and `MACHINE_URL`.
 
@@ -100,6 +104,9 @@ compares the requested claim names with the claims TrustNet actually returned.
   count and the table renders every requested claim.
 - **A previously shared claim is not returned** — it is listed as “Not returned”
   even though it was not newly selected.
+- **Different account during escalation** — the RP keeps the old session,
+  discards the returned claims, and renders the account-mismatch error; the
+  escalation outcome card is absent.
 - **Unexpected returned claim** — a claim TrustNet returns that the RP did not
   request is not added to the escalation table; it remains visible in the ID
   token and UserInfo cards.
@@ -112,5 +119,6 @@ compares the requested claim names with the claims TrustNet actually returned.
 
 | Date | Version | Change |
 | --- | --- | --- |
+| 2026-11-06 | 1.1.1 | Add the escalation account-mismatch error and document that the returned claims are discarded. |
 | 2026-11-06 | 1.1.0 | Add the escalation outcome card and the escalation callback return path. |
 | 2026-11-05 | 1.0.0 | Initial approved spec for the live demo RP. |

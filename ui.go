@@ -38,8 +38,13 @@ func displayLabel() string {
 }
 
 // pageStart writes the shared shell: header, nav, and the opening <main>.
-// Handlers append their content and finish with pageEnd.
-func pageStart(w io.Writer, title, active string) {
+// Handlers append their content and finish with pageEnd. signedIn adds the
+// Escalate action, which is only meaningful for a valid session.
+func pageStart(w io.Writer, title, active string, signedIn bool) {
+	escalate := ""
+	if signedIn {
+		escalate = navLink("/escalate", "Escalate", active == "escalate")
+	}
 	fmt.Fprintf(w, `<!doctype html>
 <html lang="en">
 <head>
@@ -57,6 +62,7 @@ func pageStart(w io.Writer, title, active string) {
       %s
       %s
       %s
+      %s
       <a href="/debug/state">State</a>
       <a href="/logout">Log out</a>
       <button class="btn ghost small" type="button" data-theme-toggle>Dark</button>
@@ -66,6 +72,7 @@ func pageStart(w io.Writer, title, active string) {
 <main class="wrap">`, html.EscapeString(title), html.EscapeString(displayLabel()),
 		navLink("/", "Home", active == "home"),
 		navLink("/account", "Dashboard", active == "account"),
+		escalate,
 		navLink("/webhooks", "Webhooks", active == "webhooks"))
 }
 
@@ -85,7 +92,7 @@ func renderError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
-	pageStart(w, "OIDC · error", "")
+	pageStart(w, "OIDC · error", "", false)
 	fmt.Fprintf(w, `<section class="page-head">
 <p class="eyebrow">Request failed</p>
 <h1>Something went wrong</h1>

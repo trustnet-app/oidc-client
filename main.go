@@ -52,6 +52,7 @@ func newMux() *http.ServeMux {
 		mux.HandleFunc(p, handleCallback)
 	}
 	mux.HandleFunc("/account", handleAccount)
+	mux.HandleFunc("/escalate", handleEscalate)
 	mux.HandleFunc("/result", handleResult)
 	mux.HandleFunc("/rp-userinfo", handleRpUserinfo)
 	mux.HandleFunc("/backchannel", handleBackchannelLogout)

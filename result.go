@@ -17,10 +17,10 @@ func pretty(v any) string {
 
 // renderResult is the surface a tester (or an e2e suite) reads. The testids are
 // the contract: `sub`, `id-claims`, `userinfo`, `error`, `token-keys`.
-func renderResult(w http.ResponseWriter, f *flowState) {
+func renderResult(w http.ResponseWriter, f *flowState, signedIn bool) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	pageStart(w, "OIDC · result", "result")
+	pageStart(w, "OIDC · result", "result", signedIn)
 
 	fmt.Fprintf(w, `<section class="page-head">
 <p class="eyebrow">Authorization Code Flow · Result</p>
@@ -36,6 +36,10 @@ func renderResult(w http.ResponseWriter, f *flowState) {
 	if f.Code != "" {
 		fmt.Fprintf(w, `<section class="card"><div class="card-head"><h2>Authorization code</h2><span class="badge">received</span></div><pre data-testid="code">%s</pre></section>`,
 			html.EscapeString(f.Code))
+	}
+
+	if f.Escalation && f.Error == "" && len(f.RequestedClaims) > 0 {
+		renderEscalationOutcome(w, f)
 	}
 
 	if len(f.IDClaims) > 0 {
@@ -89,14 +93,56 @@ func renderResult(w http.ResponseWriter, f *flowState) {
 	pageEnd(w)
 }
 
+// renderEscalationOutcome compares the requested claim names with the claims
+// TrustNet actually returned. It shows names and statuses only, never values.
+func renderEscalationOutcome(w http.ResponseWriter, f *flowState) {
+	prior := map[string]bool{}
+	for _, name := range f.PriorClaims {
+		prior[name] = true
+	}
+	returned := 0
+	for _, name := range f.RequestedClaims {
+		if claimPresent(f.IDClaims, name) || claimPresent(f.UserInfo, name) {
+			returned++
+		}
+	}
+
+	fmt.Fprintf(w, `<section class="card" style="margin-top:1rem" data-testid="escalation-outcome"><div class="card-head"><h2>Escalation outcome</h2><span class="badge accent">%d of %d returned</span></div>`, returned, len(f.RequestedClaims))
+	fmt.Fprintf(w, `<p class="muted"><span data-testid="escalation-summary">%d of %d requested claims returned</span>. A claim missing from both the ID token and <code>/userinfo</code> is shown as “Not returned”; the user may have declined it, or the selected persona may have no value for it.</p>`, returned, len(f.RequestedClaims))
+	fmt.Fprint(w, `<table><thead><tr><th>Claim</th><th>Source</th><th>Outcome</th></tr></thead><tbody>`)
+	for _, name := range f.RequestedClaims {
+		source := `<span class="badge">Already shared</span>`
+		if !prior[name] {
+			source = `<span class="badge accent">New request</span>`
+		}
+		outcome := `<span class="badge ok">Shared</span>`
+		state := "shared"
+		if !claimPresent(f.IDClaims, name) && !claimPresent(f.UserInfo, name) {
+			outcome = `<span class="badge warn">Not returned</span>`
+			state = "not_returned"
+		}
+		fmt.Fprintf(w, `<tr data-claim="%s" data-outcome="%s"><td class="mono">%s</td><td>%s</td><td>%s</td></tr>`,
+			html.EscapeString(name), state, html.EscapeString(name), source, outcome)
+	}
+	fmt.Fprint(w, `</tbody></table></section>`)
+}
+
+func claimPresent(m map[string]any, name string) bool {
+	if m == nil {
+		return false
+	}
+	v, ok := m[name]
+	return ok && v != nil
+}
+
 // renderAuthRequest shows the exact authorization request the client sends, so
 // a developer can inspect it before the browser follows it. The home form's
 // "Preview request" button reaches this (/start?preview=1); the flow is already
 // stored, so "Continue" navigates to the same URL /start would redirect to.
-func renderAuthRequest(w http.ResponseWriter, f *flowState) {
+func renderAuthRequest(w http.ResponseWriter, f *flowState, signedIn bool) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	pageStart(w, "OIDC · authorization preview", "preview")
+	pageStart(w, "OIDC · authorization preview", "preview", signedIn)
 
 	fmt.Fprintf(w, `<section class="page-head">
 <p class="eyebrow">Authorization Code Flow · Preview</p>

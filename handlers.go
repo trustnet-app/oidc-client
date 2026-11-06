@@ -60,7 +60,7 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	pageStart(w, "OIDC · test client", "home")
+	pageStart(w, "OIDC · test client", "home", false)
 
 	fmt.Fprintf(w, `<section class="page-head">
 <p class="eyebrow">Authorization Code Flow · Demo Client</p>
@@ -143,31 +143,62 @@ approved.</p>
 
 // GET /start — build the authorize URL and send the browser to the issuer.
 func handleStart(w http.ResponseWriter, r *http.Request) {
+	sess, err := currentSession(r)
+	if err != nil {
+		renderError(w, http.StatusInternalServerError, "Could not read the demo session.")
+		return
+	}
+
 	// Scopes arrive as one checkbox value each (name=scope); join them into the
 	// space-delimited form the authorize request expects.
 	scope := strings.Join(r.URL.Query()["scope"], " ")
 	if strings.TrimSpace(scope) == "" {
 		scope = "openid"
 	}
+	prompts := r.URL.Query()["prompt"]
+	escalate := r.URL.Query().Get("escalate") == "1"
 	claimsParam := strings.TrimSpace(r.URL.Query().Get("claims"))
-	if claimsParam == "" {
+	var prior, requested []string
+
+	if escalate {
+		if sess == nil {
+			renderError(w, http.StatusUnauthorized, "A valid session is required to escalate claims.")
+			return
+		}
+		prior = sessionRequestableClaimNames(sess)
+		submitted := requestableClaimNames(r.URL.Query()["claim"])
+		if len(claimNamesDifference(submitted, prior)) == 0 {
+			renderError(w, http.StatusBadRequest, "Select at least one new claim to escalate.")
+			return
+		}
+		// Escalation is additive: the previously shared claims are carried over
+		// even if the form omitted them.
+		requested = unionClaimNames(prior, submitted)
+		claimsParam = claimsParamJSON(requested)
+		scope = "openid"
+		// A grown claim set already forces full review; prompt=consent keeps the
+		// request standard-compliant and covers an unchanged re-consent.
+		prompts = []string{"consent"}
+	} else if claimsParam == "" {
 		// No raw JSON typed: build the `claims` request from the ticked
 		// checkboxes (a voluntary `id_token` request — "email": null).
 		if ticked := r.URL.Query()["claim"]; len(ticked) > 0 {
-			m := map[string]any{}
-			for _, name := range ticked {
-				m[name] = nil
-			}
-			b, _ := json.Marshal(map[string]any{"id_token": m})
-			claimsParam = string(b)
+			claimsParam = claimsParamJSON(requestableClaimNames(ticked))
 		}
 	}
+
 	f := &flowState{
 		State:       randB64(16),
 		Nonce:       randB64(16),
 		Verifier:    randB64(32),
 		ClaimsParam: claimsParam,
 		CreatedAt:   time.Now().UTC(),
+	}
+	if escalate {
+		f.Escalation = true
+		f.PriorSub = sess.Sub
+		f.PriorClaims = prior
+		f.RequestedClaims = requested
 	}
 	q := url.Values{
 		"client_id":             {env.ClientID},
@@ -181,7 +212,7 @@ func handleStart(w http.ResponseWriter, r *http.Request) {
 	}
 	// `prompt` arrives as one checkbox value each; join the ticked set into the
 	// space-delimited form OIDC expects (blank omits the parameter).
-	if prompts := r.URL.Query()["prompt"]; len(prompts) > 0 {
+	if len(prompts) > 0 {
 		q.Set("prompt", strings.Join(prompts, " "))
 	}
 	if f.ClaimsParam != "" {
@@ -197,7 +228,7 @@ func handleStart(w http.ResponseWriter, r *http.Request) {
 	// instead of following it. The flow is already stored, so the page's
 	// "Continue" link goes to the same URL the redirect would.
 	if r.URL.Query().Get("preview") != "" {
-		renderAuthRequest(w, f)
+		renderAuthRequest(w, f, sess != nil)
 		return
 	}
 	http.Redirect(w, r, f.AuthURL, http.StatusFound)
@@ -233,6 +264,19 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 	if idt, ok := tok["id_token"].(string); ok {
 		f.IDClaims = decodeJWT(idt)
 	}
+	if f.Escalation {
+		if returned := claimString(f.IDClaims, "sub"); returned != f.PriorSub {
+			// Never replace an existing account with a different one. Reject the
+			// escalation before userinfo/session work, keep the old session, and
+			// discard the rejected account's decoded claims.
+			f.Error = "escalation: the authorization returned a different account. Use the same account as the current session."
+			f.IDClaims = nil
+			f.UserInfo = nil
+			putFlow(f)
+			redirectToResult(w, r, f.State)
+			return
+		}
+	}
 	if at, ok := tok["access_token"].(string); ok && disc.UserInfoEndpoint != "" {
 		f.UserInfo = fetchUserInfo(at)
 	}
@@ -246,6 +290,12 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("session started, expires %s", sess.ExpiresAt.Format(time.RFC3339))
+	if f.Escalation {
+		// The escalation's whole point is the outcome: land on the result page
+		// so the user sees which requested claims were returned.
+		redirectToResult(w, r, f.State)
+		return
+	}
 	http.Redirect(w, r, "/account", http.StatusSeeOther)
 }
 
@@ -286,7 +336,7 @@ func handleResult(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	renderResult(w, f)
+	renderResult(w, f, sess != nil)
 }
 
 // GET /debug/state — machine-readable dump for assertions the HTML redacts.
@@ -467,7 +517,7 @@ func handleRpUserinfo(w http.ResponseWriter, r *http.Request) {
 		}
 		f.MachineProbe = p
 		putFlow(f)
-		renderResult(w, f)
+		renderResult(w, f, true)
 		return
 	}
 	renderAccount(w, sess, p)

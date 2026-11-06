@@ -3,7 +3,7 @@ id: screen-escalation-request
 type: screen
 title: Escalation request
 status: review
-version: 0.1.0
+version: 0.1.1
 updated: 2026-11-06
 owners: [vladimir]
 route: /escalate
@@ -62,7 +62,7 @@ shows which requested claims were returned and which were not.
 
 | Action | Trigger | Result |
 | --- | --- | --- |
-| Continue to TrustNet | Submit the form | `GET /start` with the carried-over and selected claim names, `scope=openid`, and `prompt=consent`; the flow is recorded as an escalation for the return comparison, then the browser is redirected to the issuer authorize endpoint |
+| Continue to TrustNet | Submit the form | `GET /start?escalate=1` with the carried-over and selected claim names, `scope=openid`, and `prompt=consent`; the flow is recorded as an escalation for the return comparison, then the browser is redirected to the issuer authorize endpoint |
 | Cancel | Click “Cancel” | `GET /account` → `screen-account-dashboard` |
 
 ## Validation
@@ -73,6 +73,9 @@ shows which requested claims were returned and which were not.
   with `screen-error` (`400`).
 - The request carries exactly the current session claim names plus the selected
   new names. The user cannot remove an already-shared claim from this screen.
+- The callback must return the same `sub` as the session that started the
+  escalation. A different `sub` is rejected: the existing session is kept and
+  `screen-flow-result` shows an error telling the user to use the same account.
 - The flow stores the requested claim names for the return comparison. Claim
   values are never stored for this purpose and never logged.
 - `prompt=consent` is always sent. A grown claim set already forces full review
@@ -85,6 +88,7 @@ shows which requested claims were returned and which were not.
 | Authorize | “Continue to TrustNet” | Issuer authorize endpoint |
 | Cancel | “Cancel” | `screen-account-dashboard` |
 | Session ended | Request after logout or expiry | `screen-session-ended` / `screen-demo-home` |
+| Different account | Callback returns another `sub` | `screen-flow-result` (error) |
 | Error | Missing session or no new claim | `screen-error` |
 
 ## Edge cases
@@ -96,6 +100,10 @@ shows which requested claims were returned and which were not.
 - **TrustNet denies or cancels the review** — the RP keeps the existing session
   unchanged and `screen-flow-result` shows the issuer error instead of the
   outcome table.
+- **Different account at TrustNet** — if the user authenticates as another
+  account during the escalation, the RP rejects the response, discards the
+  returned claims, keeps the existing session, and reports “Use the same account
+  as the current session.”
 - **A requested claim is unavailable** — TrustNet may omit a claim the user
   approved when the selected persona has no value for it. The result reports the
   claim as “Not returned” because OIDC gives the RP no reason.
@@ -117,4 +125,5 @@ shows which requested claims were returned and which were not.
 
 | Date | Version | Change |
 | --- | --- | --- |
+| 2026-11-06 | 0.1.1 | Reject an escalation response that returns a different `sub`; keep the existing session and tell the user to use the same account. |
 | 2026-11-06 | 0.1.0 | Proposed escalation-request screen for signed-in users. |

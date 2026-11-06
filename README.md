@@ -50,7 +50,9 @@ environment variables always override the file.
 ```
 
 Then open <http://localhost:5556/>, pick scopes/claims, and start the flow. A
-successful callback creates the demo session and lands on `/account`.
+successful callback creates the demo session and lands on `/account`. From the
+signed-in navbar, **Escalate** requests additional claims; its callback lands on
+the flow result and reports which requested claims were returned.
 
 ## Routes
 
@@ -60,7 +62,8 @@ successful callback creates the demo session and lands on `/account`.
 | `/start` | build the authorize URL (`?preview=1` renders it instead of following) |
 | `/callback` | code exchange, ID-token decode, session creation, OIDC `/userinfo` |
 | `/account` | signed-in dashboard (session, identity, userinfo, probe, flow, events) |
-| `/result` | session-scoped per-flow result surface |
+| `/escalate` | signed-in claim-escalation form; submits to `/start?escalate=1` |
+| `/result` | session-scoped per-flow result surface, including escalation outcomes |
 | `/rp-userinfo` | session-scoped machine-plane `/api/rp/v1/userinfo` probe (needs `MACHINE_URL`) |
 | `/logout` | clears the local session, then redirects to `/` |
 | `/backchannel`, `/backchannel-logout` | validates logout-token claims and ends matching sessions |
@@ -78,7 +81,8 @@ go build ./...
 
 The suite covers the SQLite store and TTL pruning, session cookies, logout-token
 validation, purge JWS verification and strict/non-strict responses, route
-aliases, redirects, session scoping, and tombstones.
+aliases, redirects, session scoping, tombstones, and the claim-escalation
+request/outcome path.
 
 ## Deployment
 
@@ -107,6 +111,13 @@ aliases, redirects, session scoping, and tombstones.
 - The live pages embed `_DESIGN/styles.css` and `_DESIGN/design.js` and serve
   them as `/styles.css` and `/design.js`, so the app and the screen catalogue
   share one visual language.
+- An escalation is additive: the current requestable claim names are carried
+  over with the newly selected names, `prompt=consent` is sent, and the flow
+  records both sets for the outcome comparison. A claim absent from both the ID
+  token and `/userinfo` is shown as “Not returned”; OIDC does not expose whether
+  the user declined it or TrustNet had no value. If the callback returns a
+  different `sub`, the escalation is rejected, the existing session is kept, and
+  the result tells the user to use the same account.
 - The RP's `sub` is the PPID; `account_id`/`persona_id` must never appear.
 - The registered `REDIRECT_URI` must exist on the client in each environment;
   this tool deliberately does **not** create or update clients.

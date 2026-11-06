@@ -5,8 +5,9 @@ login/logout/purge validation remains.
 
 ## Escalation request (new feature)
 
-Status: **docs/screens updated 2026-11-06; no application code written.** This
-part is awaiting owner approval before implementation.
+Status: **implemented 2026-11-06.** Docs, screens, application code, and tests
+landed after owner approval. `go test ./...`, `go vet ./...`, and `go build ./...`
+pass.
 
 ### Intent
 
@@ -32,7 +33,7 @@ flow result shows which requested claims TrustNet returned and which it did not.
   expose whether the user declined the claim or TrustNet had no value, so the
   demo does not guess.
 
-### Files updated (docs only)
+### Files updated
 
 - `_DOCS/screens/escalation-request.screen.md` (new, `review`)
 - `_DOCS/index.md`, `_DOCS/screens/account-dashboard.screen.md`,
@@ -40,30 +41,30 @@ flow result shows which requested claims TrustNet returned and which it did not.
 - `_DESIGN/screens/escalation-request.html` (new),
   `_DESIGN/screens/account-dashboard.html`, `_DESIGN/screens/flow-result.html`,
   `_DESIGN/index.html`, `_DESIGN/README.md`
+- `escalation.go` (new), `escalation_test.go` (new); `account.go`, `config.go`,
+  `handlers.go`, `main.go`, `result.go`, `ui.go`, `webhooks.go`, `README.md`
 
-### Implementation outline (not started)
+### Implementation landed
 
-1. Make the shared navbar session-aware and show **Escalate** only for a valid
-   session; render it on the dashboard and other signed-in screens.
-2. Add `GET /escalate`: read the session, list requestable claims not present in
-   the session, render the form, and reject a missing session with `401`.
-3. Add escalation mode to `GET /start`: validate at least one new claim, combine
-   the current claim names with the selection, send `scope=openid` and
-   `prompt=consent`, and record the requested claim names on the flow.
-4. Redirect an escalation callback to `/result?state=…` instead of `/account`;
-   keep the normal flow unchanged.
-5. Add the escalation outcome card to `renderResult`, comparing requested names
-   with the ID token and `/userinfo`; ignore protocol claims and render names and
-   statuses only.
-6. Update `README.md` routes and add route/unit tests (session requirement, claim
-   combination, outcome classification, denial path).
+1. The shared navbar is session-aware and shows **Escalate** only for a valid
+   session.
+2. `GET /escalate` reads the session, lists requestable claims not present in the
+   session, and rejects a missing session with `401`.
+3. `GET /start?escalate=1` validates at least one new claim, combines the current
+   claim names with the selection, sends `scope=openid` and `prompt=consent`, and
+   records the prior/requested claim names on the flow.
+4. An escalation callback redirects to `/result?state=…`; the normal flow still
+   redirects to `/account`.
+5. `renderResult` renders the escalation outcome card, comparing requested names
+   with the ID token and `/userinfo` and showing names/statuses only.
+6. `README.md`, the route table, and the test suite were updated.
 
-### Open questions for the owner
+### Resolved decisions
 
-- [ ] Is additive-only escalation correct, or should the form allow removing an
-      already-shared claim?
-- [ ] Is “Not returned” an acceptable label, given the RP cannot distinguish a
-      user decline from a missing value?
+- [x] Additive-only escalation: already-shared claims are carried over and cannot
+      be removed on the escalation form.
+- [x] “Not returned” is the label; OIDC does not let the RP distinguish a user
+      decline from a missing value.
 
 ## Target
 
@@ -196,8 +197,12 @@ No `CA_FILE`: production endpoints use publicly trusted TLS.
 
 ## Change log
 
-- 2026-11-06: Documented the escalation-request screen and the escalation
-  outcome on the flow result. No code changes yet; awaiting owner approval.
+- 2026-11-06: Implemented claim escalation: session-aware **Escalate** navbar
+  action, `/escalate` form, additive `/start?escalate=1` request with
+  `prompt=consent`, callback return to `/result`, and the escalation outcome
+  card with route/unit tests. An escalation whose callback returns a different
+  `sub` is rejected, keeps the existing session, and tells the user to use the
+  same account.
 - 2026-11-06: RP-initiated `/logout` is now local-only. It clears the session
   cookie and store row, records the `rp_initiated` event, and redirects to `/`
   instead of TrustNet's `end_session_endpoint`. Deploy a rebuilt binary to pick

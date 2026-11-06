@@ -48,7 +48,7 @@ func handleAccount(w http.ResponseWriter, r *http.Request) {
 func renderSessionEnded(w http.ResponseWriter, ev *sessionEvent) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	pageStart(w, "OIDC · session ended", "account")
+	pageStart(w, "OIDC · session ended", "account", false)
 
 	fmt.Fprint(w, `<div style="max-width:620px;margin:2rem auto 0"><div class="card">`)
 	fmt.Fprintf(w, `<div class="card-head"><h1>You were signed out by TrustNet</h1><span class="badge warn">%s</span></div>`,
@@ -71,7 +71,7 @@ func renderSessionEnded(w http.ResponseWriter, ev *sessionEvent) {
 func renderAccountErased(w http.ResponseWriter, ev *sessionEvent) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	pageStart(w, "OIDC · account erased", "account")
+	pageStart(w, "OIDC · account erased", "account", false)
 
 	fmt.Fprint(w, `<div style="max-width:620px;margin:2rem auto 0"><div class="card">`)
 	fmt.Fprint(w, `<div class="card-head"><h1>Your demo RP data was erased</h1><span class="badge danger">account.erased</span></div>`)
@@ -274,7 +274,7 @@ func secureSuffix() string {
 func renderAccount(w http.ResponseWriter, sess *session, probe *machineProbe) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	pageStart(w, "OIDC · account", "account")
+	pageStart(w, "OIDC · account", "account", true)
 
 	name := displayName(sess)
 	fmt.Fprintf(w, `<section class="page-head"><div class="row spread"><div class="row"><span class="avatar" aria-hidden="true">%s</span><div><h1>Logged in as %s</h1><p class="muted">Session started %s · expires %s</p></div></div><a class="btn secondary" href="/logout">Sign out</a></div></section>`,

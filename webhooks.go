@@ -127,7 +127,7 @@ func handleDebugPurge(w http.ResponseWriter, r *http.Request) {
 func handleWebhooks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	pageStart(w, "OIDC · webhooks", "webhooks")
+	pageStart(w, "OIDC · webhooks", "webhooks", false)
 
 	fmt.Fprint(w, `<section class="page-head"><div class="row spread"><div><h1>Webhook deliveries</h1><p class="muted">TrustNet signs each purge webhook with Ed25519. Verified rows were checked against the JWKS; invalid rows are recorded but not acted on.</p></div><div class="row"><a class="btn secondary small" href="/webhooks">Refresh</a><form method="post" action="/debug/reset"><input type="hidden" name="next" value="/webhooks"><button class="btn secondary small" type="submit">Reset demo state</button></form><a class="btn small" href="/debug/purge">Open JSON</a></div></div></section>`)
 
