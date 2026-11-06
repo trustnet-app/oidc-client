@@ -10,5 +10,10 @@
 # Build output
 /oidc_oauth2_client
 
+# SQLite databases (runtime state)
+*.db
+*.db-shm
+*.db-wal
+
 # Stitch design workspace (captures, variants, manifests)
 .stitch/
