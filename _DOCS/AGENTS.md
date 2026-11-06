@@ -16,6 +16,12 @@ it before changing a user-facing flow or a stateful entity.
 
 ## Ground rules
 
+- **Hard rule: never modify files outside this repository without explicit
+  permission.** This includes remote hosts, production services, databases, DNS,
+  reverse proxies, systemd units, deployment directories, and user accounts
+  elsewhere. Read-only inspection is allowed for analysis; any write, restart,
+  or config change outside this repository requires the owner's explicit
+  permission first.
 - **Screen docs are the source of truth for intent, not the current code.** If
   the code and a doc disagree, say so explicitly instead of silently choosing
   one.

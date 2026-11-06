@@ -62,7 +62,7 @@ successful callback creates the demo session and lands on `/account`.
 | `/account` | signed-in dashboard (session, identity, userinfo, probe, flow, events) |
 | `/result` | session-scoped per-flow result surface |
 | `/rp-userinfo` | session-scoped machine-plane `/api/rp/v1/userinfo` probe (needs `MACHINE_URL`) |
-| `/logout` | clears the local session, then redirects to `end_session_endpoint` |
+| `/logout` | clears the local session, then redirects to `/` |
 | `/backchannel`, `/backchannel-logout` | validates logout-token claims and ends matching sessions |
 | `/purge` | verifies Ed25519 purge webhooks and ends/erases matching sessions |
 | `/webhooks` | public purge-delivery and back-channel logout log |
